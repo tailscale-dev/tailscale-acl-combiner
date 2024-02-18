@@ -1,0 +1,19 @@
+{
+	"acls": [
+		{ // group2
+			"action": "accept",
+			"src": [
+				"group2@tsjustworks.net",
+			],
+			"dst": [
+				"tag:demo-infra:22",
+			],
+		},
+	],
+	"groups": {
+		"group:group2": [
+			"allen@tsjustworks.net",
+		],
+	},
+	// trailing comment
+}

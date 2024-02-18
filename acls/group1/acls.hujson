@@ -1,0 +1,17 @@
+{
+	// leading comment
+	"acls": [
+		{ // group1
+			"action": "accept",
+			"src": [
+				"group1@tsjustworks.net",
+			],
+			"dst": [
+				"tag:demo-infra:22",
+			],
+			"srcPosture": [
+				"posture:latestMac",
+			],
+		},
+	]
+}
