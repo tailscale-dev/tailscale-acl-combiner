@@ -1,0 +1,10 @@
+{
+	"RandomizeClientPort": true, // inline comment
+
+	"extraDNSRecords": [
+		{
+			"Name":  "exra.dns.records",
+			"Value": "100.100.100.100",
+		},
+	],
+}
