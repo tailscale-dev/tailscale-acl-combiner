@@ -36,9 +36,20 @@ func main() {
 		}
 	}
 
-	// TODO: add additional sections
-	newAcls := new(jwcc.Array)
-	newGroups := new(jwcc.Object)
+	// TODO: BUG - merge with existing sections in parentDoc - e.g. extraDNSRecords is repeated if in parent and child docs
+	// TODO: missing any sections
+	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
+	aclSections := map[string]any{
+		"acls":            new(jwcc.Array),
+		"groups":          new(jwcc.Object),
+		"postures":        new(jwcc.Object),
+		"tagOwners":       new(jwcc.Object),
+		"autoApprovers":   nil, // "autoApprovers": new(jwcc.Object), // TODO: need to merge "routes" and "exitNodes" sub-sections
+		"ssh":             new(jwcc.Array),
+		"nodeAttrs":       new(jwcc.Array), // TODO: need to merge anything?
+		"tests":           new(jwcc.Array),
+		"extraDNSRecords": new(jwcc.Array),
+	}
 
 	logVerbose(fmt.Sprintf("Walking path [%v]...\n", *dir))
 	err = filepath.WalkDir(
@@ -59,22 +70,27 @@ func main() {
 				log.Fatal(err)
 			}
 
-			acls := doc.Find("acls")
-			if acls != nil {
-				aclsValues := acls.Value.(*jwcc.Array)
-				newAcls.Values = append(newAcls.Values, aclsValues.Values...)
-			}
+			for sectionKey, sectionObject := range aclSections {
+				section := doc.Find(sectionKey)
+				if section == nil {
+					continue
+				}
 
-			groups := doc.Find("groups")
-			if groups != nil {
-				groupsValues := groups.Value.(*jwcc.Object)
-				for _, v := range groupsValues.Members {
-					newGroups.Members = append(newGroups.Members, &jwcc.Member{Key: v.Key, Value: v.Value})
+				switch sectionType := sectionObject.(type) {
+				case *jwcc.Array:
+					childValues := section.Value.(*jwcc.Array)
+					sectionObject.(*jwcc.Array).Values = append(sectionObject.(*jwcc.Array).Values, childValues.Values...)
+
+				case *jwcc.Object:
+					childValues := section.Value.(*jwcc.Object)
+					for _, m := range childValues.Members {
+						sectionObject.(*jwcc.Object).Members = append(sectionObject.(*jwcc.Object).Members, &jwcc.Member{Key: m.Key, Value: m.Value})
+					}
+				default:
+					return fmt.Errorf("unexpected type %T for %s", sectionType, sectionKey)
 				}
 			}
-
 			// TODO: parse after each file to report errors found when they happen?
-
 			return nil
 		},
 	)
@@ -82,8 +98,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	parentDoc.Members = append(parentDoc.Members, jwcc.Field("acls", newAcls))
-	parentDoc.Members = append(parentDoc.Members, jwcc.Field("groups", newGroups))
+	for sectionKey, sectionObject := range aclSections {
+		if sectionObject == nil {
+			continue
+		}
+		switch sectionType := sectionObject.(type) {
+		case *jwcc.Array:
+			if len(sectionObject.(*jwcc.Array).Values) == 0 {
+				continue
+			}
+		case *jwcc.Object:
+			if len(sectionObject.(*jwcc.Object).Members) == 0 {
+				continue
+			}
+		default:
+			fmt.Printf("skipping %s: unexpected type %T", sectionType, sectionKey)
+		}
+
+		parentDoc.Members = append(parentDoc.Members, jwcc.Field(sectionKey, sectionObject))
+	}
 
 	err = jwcc.Format(os.Stdout, parentDoc)
 	if err != nil {
@@ -101,12 +134,12 @@ func parse(path string) (*jwcc.Object, error) {
 
 	doc, err := jwcc.Parse(f)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing %s: %v", path, err)
 	}
 
 	root, ok := doc.Value.(*jwcc.Object)
 	if !ok {
-		return nil, fmt.Errorf("invalid policy: document root is %T, not object", doc.Value)
+		return nil, fmt.Errorf("invalid file format: document root is %T, expected object", doc.Value)
 	}
 
 	return root, nil

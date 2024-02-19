@@ -15,5 +15,50 @@
 			"allen@tsjustworks.net",
 		],
 	},
-	// trailing comment
+	"tests": [
+		{
+			"src": "dave@example.com",
+			"srcPostureAttrs": {
+				"node:os": "windows",
+			},
+			"proto": "tcp",
+			"accept": ["example-host-1:22", "vega:80"],
+			"deny": ["1.2.3.4:443"],
+		},
+	],
+	"tagOwners": {
+		"tag:dave": [		
+
+				],
+	},	// trailing comment
+	// "autoApprovers": {
+	// 	"routes": {
+	// 		"10.0.0.0/24": ["group:engineering", "alice@example.com", "tag:foo"],
+	// 	},
+	// 	"exitNode": ["tag:bar"],
+	// },
+	"ssh": [
+		{
+		  "action": "accept",
+		  "src": ["autogroup:member"],
+		  "dst": ["tag:prod"],
+		  "users": ["root", "autogroup:nonroot"]
+		},
+		{
+		  "action": "accept",
+		  "src": ["tag:logging"],
+		  "dst": ["tag:prod"],
+		  "users": ["root", "autogroup:nonroot"]
+		},
+	  ]	,
+	  "nodeAttrs": [
+		{
+			"target": ["my-kid@my-home.com", "tag:server"],
+			"attr": [
+				"nextdns:abc123",
+				"nextdns:no-device-info",
+			],
+		},
+	],
+	
 }

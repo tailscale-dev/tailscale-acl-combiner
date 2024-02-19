@@ -1,4 +1,10 @@
 {
+	"extraDNSRecords": [
+		{
+			"Name":  "my.example.test",
+			"Value": "100.100.100.100",
+		},
+	],
 	// leading comment
 	"acls": [
 		{ // group1
@@ -19,4 +25,51 @@
 			"cameron@tsjustworks.net",
 		],
 	},
+	"tests": [
+		{
+			"src": "cameron@example.com",
+			"accept": ["tag:cameron:22"],
+		},
+	],
+	"postures": {
+		"posture:latestMac": [
+			"node:os IN ['macos', 'linux']",
+			"node:tsReleaseTrack == 'stable'",
+			"node:tsVersion >= '1.40'",
+		],
+	},
+	"tagOwners": {
+		"tag:cameron": [		
+		  "autogroup:member",
+		],
+	},
+	// "autoApprovers": {
+	// 	"exitNode": ["tag:bar"],
+	// },
+	"ssh": [
+		{
+		  "action": "accept",
+		  "src": ["autogroup:member"],
+		  "dst": ["autogroup:self"],
+		  "users": ["root", "autogroup:nonroot"]
+		},
+	  ],
+	  "nodeAttrs": [
+		{
+			"target": ["*"],
+			"app": {
+				"tailscale.com/app-connectors": [
+					{
+						"name":       "github",
+						"connectors": ["tag:demo-appconnector"],
+						"domains":    ["github.com", "*.github.com"],
+					},
+				],
+			}
+		},
+		{ // mullvad for all admins
+			"attr":   ["mullvad"],
+			"target": ["autogroup:admin"],
+		},
+	],
 }
