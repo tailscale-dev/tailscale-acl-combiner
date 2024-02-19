@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	f       = flag.String("f", "", "parent file to load from")
-	dir     = flag.String("d", "", "directory to process files from")
+	f   = flag.String("f", "", "parent file to load from")
+	dir = flag.String("d", "", "directory to process files from")
+	// TODO: add -out arg to write to file
 	verbose = flag.Bool("v", false, "enable verbose logging")
 )
 
@@ -36,6 +37,7 @@ func main() {
 		}
 	}
 
+	// TODO: add additional sections
 	newAcls := new(jwcc.Array)
 	newGroups := new(jwcc.Object)
 
@@ -71,6 +73,8 @@ func main() {
 					newGroups.Members = append(newGroups.Members, &jwcc.Member{Key: v.Key, Value: v.Value})
 				}
 			}
+
+			// TODO: parse after each file to report errors found when they happen?
 
 			return nil
 		},
