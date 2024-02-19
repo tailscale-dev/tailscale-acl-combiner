@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -107,7 +106,7 @@ func parse(path string) (*jwcc.Object, error) {
 
 	root, ok := doc.Value.(*jwcc.Object)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("invalid policy: document root is %T, not object", doc.Value))
+		return nil, fmt.Errorf("invalid policy: document root is %T, not object", doc.Value)
 	}
 
 	return root, nil
