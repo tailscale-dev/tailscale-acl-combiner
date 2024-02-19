@@ -13,5 +13,10 @@
 				"posture:latestMac",
 			],
 		},
-	]
+	],
+	"groups": {
+		"group:group1": [
+			"cameron@tsjustworks.net",
+		],
+	},
 }

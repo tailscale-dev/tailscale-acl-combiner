@@ -23,37 +23,43 @@ func main() {
 	// dir := "acls"
 	// fmt.Printf("Parsing acl parts from [%s]\n", dir)
 
-	f1 := "acls/group1/acls.hujson"
-	d1, err := parse(f1)
-	if err != nil {
-		log.Fatal(err)
+	files := []string{
+		"acls/group1/acls.hujson",
+		"acls/group2/acls.hujson",
 	}
-	fmt.Printf("loaded doc [%v] from [%s]\n", d1, f1)
-	a1 := d1.Find("acls").Value.(*jwcc.Array)
-	fmt.Printf("loaded acls [%v] from [%s]\n", a1, f1)
 
-	f2 := "acls/group2/acls.hujson"
-	d2, err := parse(f2)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("loaded doc [%v] from [%s]\n", d2, f2)
-	a2 := d2.Find("acls").Value.(*jwcc.Array)
-	fmt.Printf("loaded acls [%v] from [%s]\n", a2, f2)
-
-	newDoc := &jwcc.Object{
+	parentDoc := &jwcc.Object{
 		Members: make([]*jwcc.Member, 0),
 	}
 
-	root := new(jwcc.Array)
-	root.Values = append(root.Values, a1.Values...)
-	root.Values = append(root.Values, a2.Values...)
+	newAcls := new(jwcc.Array)
+	newGroups := new(jwcc.Object)
 
-	newDoc.Members = append(newDoc.Members, jwcc.Field("acls", root))
+	for _, f := range files {
+		doc, err := parse(f)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// fmt.Printf("new acls %+v\n", root.JSON())
+		acls := doc.Find("acls")
+		if acls != nil {
+			aclsValues := acls.Value.(*jwcc.Array)
+			newAcls.Values = append(newAcls.Values, aclsValues.Values...)
+		}
 
-	err = jwcc.Format(os.Stdout, newDoc)
+		groups := doc.Find("groups")
+		if groups != nil {
+			groupsValues := groups.Value.(*jwcc.Object)
+			for _, v := range groupsValues.Members {
+				newGroups.Members = append(newGroups.Members, &jwcc.Member{Key: v.Key, Value: v.Value})
+			}
+		}
+	}
+
+	parentDoc.Members = append(parentDoc.Members, jwcc.Field("acls", newAcls))
+	parentDoc.Members = append(parentDoc.Members, jwcc.Field("groups", newGroups))
+
+	err := jwcc.Format(os.Stdout, parentDoc)
 	if err != nil {
 		log.Fatal(err)
 	}
