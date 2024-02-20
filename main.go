@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -12,10 +13,10 @@ import (
 )
 
 var (
-	f   = flag.String("f", "", "parent file to load from")
-	dir = flag.String("d", "", "directory to process files from")
-	// TODO: add -out arg to write to file
-	verbose = flag.Bool("v", false, "enable verbose logging")
+	inParentFile = flag.String("f", "", "parent file to load from")
+	inChildDir   = flag.String("d", "", "directory to process files from")
+	outFile      = flag.String("o", "", "file to write output to")
+	verbose      = flag.Bool("v", false, "enable verbose logging")
 )
 
 func main() {
@@ -25,8 +26,8 @@ func main() {
 	// }
 	var parentDoc *jwcc.Object
 	var err error
-	if *f != "" {
-		parentDoc, err = parse(*f)
+	if *inParentFile != "" {
+		parentDoc, err = parse(*inParentFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -37,8 +38,9 @@ func main() {
 	}
 
 	// TODO: BUG - merge with existing sections in parentDoc - e.g. extraDNSRecords is repeated if in parent and child docs
-	// TODO: missing any sections
+	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
+	// TODO: sort sections in output?
 	aclSections := map[string]any{
 		"acls":            new(jwcc.Array),
 		"groups":          new(jwcc.Object),
@@ -51,9 +53,9 @@ func main() {
 		"extraDNSRecords": new(jwcc.Array),
 	}
 
-	logVerbose(fmt.Sprintf("Walking path [%v]...\n", *dir))
+	logVerbose(fmt.Sprintf("Walking path [%v]...\n", *inChildDir))
 	err = filepath.WalkDir(
-		*dir,
+		*inChildDir,
 		func(path string, info fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -118,11 +120,26 @@ func main() {
 		parentDoc.Members = append(parentDoc.Members, jwcc.Field(sectionKey, sectionObject))
 	}
 
-	err = jwcc.Format(os.Stdout, parentDoc)
-	if err != nil {
-		log.Fatal(err)
+	if *outFile != "" {
+		f, err := os.Create(*outFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+
+		w := bufio.NewWriter(f)
+		err = jwcc.Format(w, parentDoc)
+		if err != nil {
+			log.Fatal(err)
+		}
+		w.Flush()
+	} else {
+		err = jwcc.Format(os.Stdout, parentDoc)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("\n")
 	}
-	fmt.Printf("\n")
 }
 
 func parse(path string) (*jwcc.Object, error) {
