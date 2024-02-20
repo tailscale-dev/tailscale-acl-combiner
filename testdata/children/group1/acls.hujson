@@ -20,11 +20,6 @@
 			],
 		},
 	],
-	"groups": {
-		"group:group1": [
-			"cameron@tsjustworks.net",
-		],
-	},
 	"tests": [
 		{
 			"src": "cameron@example.com",
