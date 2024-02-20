@@ -17,8 +17,11 @@ For example, using the `testdata` directory in this repo:
 $ go run main.go -f testdata/parent.hujson -d testdata/departments
 {
   "acls": [
-    // ...
+    // acls from `testdata/parent.hujson` and any files found under `testdata/departments`
   ],
-  // ...
+  "groups": [
+    // groups from `testdata/parent.hujson` and any files found under `testdata/departments`
+  ],
+  // etc
 }
 ```
