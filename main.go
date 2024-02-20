@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/creachadair/jtree/ast"
 	"github.com/creachadair/jtree/jwcc"
 )
 
@@ -22,8 +23,6 @@ var (
 func main() {
 	flag.Parse()
 
-	// if *dev {
-	// }
 	var parentDoc *jwcc.Object
 	var err error
 	if *inParentFile != "" {
@@ -37,19 +36,18 @@ func main() {
 		}
 	}
 
-	// TODO: BUG - merge with existing sections in parentDoc - e.g. extraDNSRecords is repeated if in parent and child docs
 	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
 	aclSections := map[string]any{
-		"acls":            new(jwcc.Array),
-		"groups":          new(jwcc.Object),
-		"postures":        new(jwcc.Object),
-		"tagOwners":       new(jwcc.Object),
+		"acls":            existingOrNewArray("acls", *parentDoc),
+		"groups":          existingOrNewObject("groups", *parentDoc),
+		"postures":        existingOrNewObject("postures", *parentDoc),
+		"tagOwners":       existingOrNewObject("tagOwners", *parentDoc),
 		"autoApprovers":   nil, // "autoApprovers": new(jwcc.Object), // TODO: need to merge "routes" and "exitNodes" sub-sections
-		"ssh":             new(jwcc.Array),
-		"nodeAttrs":       new(jwcc.Array), // TODO: need to merge anything?
-		"tests":           new(jwcc.Array),
-		"extraDNSRecords": new(jwcc.Array),
+		"ssh":             existingOrNewArray("ssh", *parentDoc),
+		"nodeAttrs":       existingOrNewArray("nodeAttrs", *parentDoc), // TODO: need to merge anything?
+		"tests":           existingOrNewArray("tests", *parentDoc),
+		"extraDNSRecords": existingOrNewArray("extraDNSRecords", *parentDoc),
 	}
 
 	logVerbose(fmt.Sprintf("Walking path [%v]...\n", *inChildDir))
@@ -99,6 +97,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	newDoc := &jwcc.Object{
+		Members: make([]*jwcc.Member, 0),
+	}
+
 	for sectionKey, sectionObject := range aclSections {
 		if sectionObject == nil {
 			continue
@@ -116,10 +118,10 @@ func main() {
 			fmt.Printf("skipping %s: unexpected type %T", sectionType, sectionKey)
 		}
 
-		parentDoc.Members = append(parentDoc.Members, jwcc.Field(sectionKey, sectionObject))
+		newDoc.Members = append(newDoc.Members, jwcc.Field(sectionKey, sectionObject))
 	}
 
-	parentDoc.Sort() // TODO: make configurable via an arg?
+	newDoc.Sort() // TODO: make configurable via an arg?
 
 	if *outFile != "" {
 		f, err := os.Create(*outFile)
@@ -129,13 +131,13 @@ func main() {
 		defer f.Close()
 
 		w := bufio.NewWriter(f)
-		err = jwcc.Format(w, parentDoc)
+		err = jwcc.Format(w, newDoc)
 		if err != nil {
 			log.Fatal(err)
 		}
 		w.Flush()
 	} else {
-		err = jwcc.Format(os.Stdout, parentDoc)
+		err = jwcc.Format(os.Stdout, newDoc)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -161,6 +163,22 @@ func parse(path string) (*jwcc.Object, error) {
 	}
 
 	return root, nil
+}
+
+func existingOrNewArray(path string, doc jwcc.Object) *jwcc.Array {
+	existingSection := doc.FindKey(ast.TextEqual(path))
+	if existingSection == nil {
+		return new(jwcc.Array)
+	}
+	return existingSection.Value.(*jwcc.Array)
+}
+
+func existingOrNewObject(path string, doc jwcc.Object) *jwcc.Object {
+	existingSection := doc.FindKey(ast.TextEqual(path))
+	if existingSection == nil {
+		return new(jwcc.Object)
+	}
+	return existingSection.Value.(*jwcc.Object)
 }
 
 func logVerbose(message string) {
