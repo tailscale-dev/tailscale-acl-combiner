@@ -38,6 +38,7 @@ func main() {
 
 	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
+	// TODO: BUG - RandomizeClientPort (and other sections not listed below) are omitted when creating newDoc not from parentDoc
 	aclSections := map[string]any{
 		"acls":            existingOrNewArray("acls", *parentDoc),
 		"groups":          existingOrNewObject("groups", *parentDoc),
@@ -50,56 +51,29 @@ func main() {
 		"extraDNSRecords": existingOrNewArray("extraDNSRecords", *parentDoc),
 	}
 
-	logVerbose(fmt.Sprintf("Walking path [%v]...\n", *inChildDir))
-	err = filepath.WalkDir(
-		*inChildDir,
-		func(path string, info fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-
-			if info.IsDir() {
-				return nil
-			}
-
-			doc, err := parse(path)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			for sectionKey, sectionObject := range aclSections {
-				section := doc.Find(sectionKey)
-				if section == nil {
-					continue
-				}
-
-				switch sectionType := sectionObject.(type) {
-				case *jwcc.Array:
-					childValues := section.Value.(*jwcc.Array)
-					sectionObject.(*jwcc.Array).Values = append(sectionObject.(*jwcc.Array).Values, childValues.Values...)
-
-				case *jwcc.Object:
-					childValues := section.Value.(*jwcc.Object)
-					for _, m := range childValues.Members {
-						sectionObject.(*jwcc.Object).Members = append(sectionObject.(*jwcc.Object).Members, &jwcc.Member{Key: m.Key, Value: m.Value})
-					}
-				default:
-					return fmt.Errorf("unexpected type %T for %s", sectionType, sectionKey)
-				}
-			}
-			// TODO: parse after each file to report errors found when they happen?
-			return nil
-		},
-	)
+	childDocs, err := gatherChildren(*inChildDir)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	err = mergeDocs(aclSections, childDocs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	newDoc, err := newDoc(aclSections)
+	if err != nil {
+		log.Fatal(err)
+	}
+	outputFile(newDoc)
+}
+
+func newDoc(sections map[string]any) (*jwcc.Object, error) {
 	newDoc := &jwcc.Object{
 		Members: make([]*jwcc.Member, 0),
 	}
 
-	for sectionKey, sectionObject := range aclSections {
+	for sectionKey, sectionObject := range sections {
 		if sectionObject == nil {
 			continue
 		}
@@ -113,34 +87,98 @@ func main() {
 				continue
 			}
 		default:
-			fmt.Printf("skipping %s: unexpected type %T", sectionType, sectionKey)
+			return nil, fmt.Errorf("skipping %s: unexpected type %T", sectionType, sectionKey)
 		}
 
 		newDoc.Members = append(newDoc.Members, jwcc.Field(sectionKey, sectionObject))
 	}
 
 	newDoc.Sort() // TODO: make configurable via an arg?
+	return newDoc, nil
+}
 
+func mergeDocs(sections map[string]any, childDocs []*jwcc.Object) error {
+	for _, doc := range childDocs {
+		for sectionKey, sectionObject := range sections {
+			section := doc.Find(sectionKey)
+			if section == nil {
+				continue
+			}
+
+			switch sectionType := sectionObject.(type) {
+			case *jwcc.Array:
+				childValues := section.Value.(*jwcc.Array)
+				sectionObject.(*jwcc.Array).Values = append(sectionObject.(*jwcc.Array).Values, childValues.Values...)
+
+			case *jwcc.Object:
+				childValues := section.Value.(*jwcc.Object)
+				for _, m := range childValues.Members {
+					sectionObject.(*jwcc.Object).Members = append(sectionObject.(*jwcc.Object).Members, &jwcc.Member{Key: m.Key, Value: m.Value})
+				}
+			default:
+				return fmt.Errorf("unexpected type %T for %s", sectionType, sectionKey)
+			}
+		}
+	}
+	return nil
+}
+
+func gatherChildren(path string) ([]*jwcc.Object, error) {
+	children := []*jwcc.Object{}
+
+	logVerbose(fmt.Sprintf("Walking path [%v]...\n", *inChildDir))
+	err := filepath.WalkDir(
+		*inChildDir,
+		func(path string, info fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if info.IsDir() {
+				return nil
+			}
+
+			// TODO: check for json, hujson extensions
+
+			doc, err := parse(path)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			children = append(children, doc)
+			return nil
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return children, nil
+}
+
+func outputFile(doc *jwcc.Object) error {
 	if *outFile != "" {
 		f, err := os.Create(*outFile)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		defer f.Close()
 
 		w := bufio.NewWriter(f)
-		err = jwcc.Format(w, newDoc)
+		err = jwcc.Format(w, doc)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
+		w.WriteString("\n")
 		w.Flush()
 	} else {
-		err = jwcc.Format(os.Stdout, newDoc)
+		err := jwcc.Format(os.Stdout, doc)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		fmt.Printf("\n")
 	}
+	return nil
 }
 
 func parse(path string) (*jwcc.Object, error) {
