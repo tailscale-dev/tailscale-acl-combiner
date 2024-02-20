@@ -62,8 +62,6 @@ func main() {
 				return nil
 			}
 
-			logVerbose(fmt.Sprintf("Parsing [%v]...\n", path))
-
 			doc, err := parse(path)
 			if err != nil {
 				log.Fatal(err)
@@ -146,6 +144,8 @@ func main() {
 }
 
 func parse(path string) (*jwcc.Object, error) {
+	logVerbose(fmt.Sprintf("Parsing [%v]...\n", path))
+
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
