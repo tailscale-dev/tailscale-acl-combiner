@@ -14,7 +14,7 @@ $ go run main.go -f <parent-file> -d <directory-of-child-files>
 For example, using the `testdata` directory in this repo:
 
 ```shell
-$ go run main.go -f testdata/parent.hujson -d testdata/children
+$ go run main.go -f testdata/parent.hujson -d testdata/departments
 {
   "acls": [
     // ...
