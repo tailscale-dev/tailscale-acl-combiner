@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/creachadair/jtree/ast"
 	"github.com/creachadair/jtree/jwcc"
@@ -138,7 +139,9 @@ func gatherChildren(path string) ([]*jwcc.Object, error) {
 				return nil
 			}
 
-			// TODO: check for json, hujson extensions
+			if !strings.HasSuffix(path, ".json") && !strings.HasSuffix(path, ".hujson") {
+				return nil
+			}
 
 			doc, err := parse(path)
 			if err != nil {
