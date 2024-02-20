@@ -40,7 +40,6 @@ func main() {
 	// TODO: BUG - merge with existing sections in parentDoc - e.g. extraDNSRecords is repeated if in parent and child docs
 	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
-	// TODO: sort sections in output?
 	aclSections := map[string]any{
 		"acls":            new(jwcc.Array),
 		"groups":          new(jwcc.Object),
@@ -119,6 +118,8 @@ func main() {
 
 		parentDoc.Members = append(parentDoc.Members, jwcc.Field(sectionKey, sectionObject))
 	}
+
+	parentDoc.Sort() // TODO: make configurable via an arg?
 
 	if *outFile != "" {
 		f, err := os.Create(*outFile)
