@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -21,8 +22,26 @@ var (
 	verbose      = flag.Bool("v", false, "enable verbose logging")
 )
 
+func usage() {
+	fmt.Fprintf(os.Stderr, "usage: tailscale-acl-combiner [flags]\n")
+	flag.PrintDefaults()
+}
+
+func checkArgs() error {
+	if *inChildDir == "" {
+		return errors.New("missing argument -d - no directory provided to process files from")
+	}
+	return nil
+}
+
 func main() {
 	flag.Parse()
+	argsErr := checkArgs()
+	if argsErr != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", argsErr)
+		usage()
+		os.Exit(1)
+	}
 
 	var parentDoc *jwcc.Object
 	var err error
