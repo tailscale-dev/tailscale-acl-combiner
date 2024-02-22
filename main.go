@@ -39,17 +39,17 @@ func main() {
 
 	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
-	// TODO: BUG - RandomizeClientPort (and other sections not listed below) are omitted when creating newDoc not from parentDoc
 	aclSections := map[string]any{
-		"acls":            existingOrNewArray("acls", *parentDoc),
-		"groups":          existingOrNewObject("groups", *parentDoc),
-		"postures":        existingOrNewObject("postures", *parentDoc),
-		"tagOwners":       existingOrNewObject("tagOwners", *parentDoc),
+		// TODO: create a type and use reflection instead?
+		"acls":            new(jwcc.Array),
+		"groups":          new(jwcc.Object),
+		"postures":        new(jwcc.Object),
+		"tagOwners":       new(jwcc.Object),
 		"autoApprovers":   nil, // "autoApprovers": new(jwcc.Object), // TODO: need to merge "routes" and "exitNodes" sub-sections
-		"ssh":             existingOrNewArray("ssh", *parentDoc),
-		"nodeAttrs":       existingOrNewArray("nodeAttrs", *parentDoc), // TODO: need to merge anything?
-		"tests":           existingOrNewArray("tests", *parentDoc),
-		"extraDNSRecords": existingOrNewArray("extraDNSRecords", *parentDoc),
+		"ssh":             new(jwcc.Array),
+		"nodeAttrs":       new(jwcc.Array), // TODO: need to merge anything?
+		"tests":           new(jwcc.Array),
+		"extraDNSRecords": new(jwcc.Array),
 	}
 
 	childDocs, err := gatherChildren(*inChildDir)
@@ -57,65 +57,48 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = mergeDocs(aclSections, childDocs)
+	err = mergeDocs(aclSections, parentDoc, childDocs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	newDoc, err := newDoc(aclSections)
-	if err != nil {
-		log.Fatal(err)
-	}
-	outputFile(newDoc)
+	parentDoc.Sort() // TODO: make configurable via an arg?
+	outputFile(parentDoc)
 }
 
-func newDoc(sections map[string]any) (*jwcc.Object, error) {
-	newDoc := &jwcc.Object{
-		Members: make([]*jwcc.Member, 0),
-	}
-
-	for sectionKey, sectionObject := range sections {
-		if sectionObject == nil {
-			continue
-		}
-		switch sectionType := sectionObject.(type) {
-		case *jwcc.Array:
-			if len(sectionObject.(*jwcc.Array).Values) == 0 {
-				continue
-			}
-		case *jwcc.Object:
-			if len(sectionObject.(*jwcc.Object).Members) == 0 {
-				continue
-			}
-		default:
-			return nil, fmt.Errorf("skipping %s: unexpected type %T", sectionType, sectionKey)
-		}
-
-		newDoc.Members = append(newDoc.Members, jwcc.Field(sectionKey, sectionObject))
-	}
-
-	newDoc.Sort() // TODO: make configurable via an arg?
-	return newDoc, nil
-}
-
-func mergeDocs(sections map[string]any, childDocs []*jwcc.Object) error {
-	for _, doc := range childDocs {
+func mergeDocs(sections map[string]any, parentDoc *jwcc.Object, childDocs []*jwcc.Object) error {
+	for _, child := range childDocs {
 		for sectionKey, sectionObject := range sections {
-			section := doc.Find(sectionKey)
+			section := child.Find(sectionKey)
 			if section == nil {
 				continue
 			}
 
 			switch sectionType := sectionObject.(type) {
 			case *jwcc.Array:
-				childValues := section.Value.(*jwcc.Array)
-				sectionObject.(*jwcc.Array).Values = append(sectionObject.(*jwcc.Array).Values, childValues.Values...)
+				newArr := existingOrNewArray(sectionKey, *parentDoc)
+				newArr.Values = append(newArr.Values, section.Value.(*jwcc.Array).Values...)
+
+				index := parentDoc.IndexKey(ast.TextEqual(sectionKey))
+				if index != -1 {
+					parentDoc.Members[index] = &jwcc.Member{Key: section.Key, Value: newArr}
+				} else {
+					parentDoc.Members = append(parentDoc.Members, &jwcc.Member{Key: section.Key, Value: newArr})
+				}
 
 			case *jwcc.Object:
-				childValues := section.Value.(*jwcc.Object)
-				for _, m := range childValues.Members {
-					sectionObject.(*jwcc.Object).Members = append(sectionObject.(*jwcc.Object).Members, &jwcc.Member{Key: m.Key, Value: m.Value})
+				newObj := existingOrNewObject(sectionKey, *parentDoc)
+				for _, m := range section.Value.(*jwcc.Object).Members {
+					newObj.Members = append(newObj.Members, &jwcc.Member{Key: m.Key, Value: m.Value})
 				}
+
+				index := parentDoc.IndexKey(ast.TextEqual(sectionKey))
+				if index != -1 {
+					parentDoc.Members[index] = &jwcc.Member{Key: section.Key, Value: newObj}
+				} else {
+					parentDoc.Members = append(parentDoc.Members, &jwcc.Member{Key: section.Key, Value: newObj})
+				}
+
 			default:
 				return fmt.Errorf("unexpected type %T for %s", sectionType, sectionKey)
 			}
@@ -206,7 +189,7 @@ func parse(path string) (*jwcc.Object, error) {
 	return root, nil
 }
 
-func existingOrNewArray(path string, doc jwcc.Object) *jwcc.Array {
+func existingOrNewArray(path string, doc jwcc.Object) *jwcc.Array { // TODO: reverse order of args? combine with existingOrNewObject and pass in type?
 	existingSection := doc.FindKey(ast.TextEqual(path))
 	if existingSection == nil {
 		return new(jwcc.Array)
