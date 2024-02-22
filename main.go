@@ -63,12 +63,13 @@ func main() {
 		}
 	}
 
-	// TODO: missing any sections? grants?
+	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
 	aclSections := map[string]string{
 		"acls": "Array",
 		// "autoApprovers" - autoApprovers should not be delegate (until we get feedback that they should)
 		"extraDNSRecords": "Array",
+		"grants":          "Array",
 		"groups":          "Object",
 		"nodeAttrs":       "Array", // TODO: need to merge anything?
 		"postures":        "Object",
