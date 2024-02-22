@@ -29,8 +29,8 @@ func TestMergeDocsEmptyParent(t *testing.T) {
 		Object: child.Value.(*jwcc.Object),
 	}
 
-	sections := map[string]any{
-		"goodpath": new(jwcc.Object),
+	sections := map[string]string{
+		"goodpath": "Object",
 	}
 
 	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})
@@ -68,8 +68,8 @@ func TestMergeDocsParentWithDifferentMembers(t *testing.T) {
 		Object: child.Value.(*jwcc.Object),
 	}
 
-	sections := map[string]any{
-		"goodpath": new(jwcc.Object),
+	sections := map[string]string{
+		"goodpath": "Object",
 	}
 
 	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})
@@ -103,8 +103,8 @@ func TestMergeDocsParentWithSameMember(t *testing.T) {
 		Object: child.Value.(*jwcc.Object),
 	}
 
-	sections := map[string]any{
-		"goodpath": new(jwcc.Object),
+	sections := map[string]string{
+		"goodpath": "Object",
 	}
 
 	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})

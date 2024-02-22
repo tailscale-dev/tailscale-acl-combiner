@@ -63,19 +63,18 @@ func main() {
 		}
 	}
 
-	// TODO: missing any sections?
+	// TODO: missing any sections? grants?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
-	aclSections := map[string]any{
-		// TODO: create a type and use reflection instead?
-		"acls": new(jwcc.Array),
+	aclSections := map[string]string{
+		"acls": "Array",
 		// "autoApprovers" - autoApprovers should not be delegate (until we get feedback that they should)
-		"extraDNSRecords": new(jwcc.Array),
-		"groups":          new(jwcc.Object),
-		"nodeAttrs":       new(jwcc.Array), // TODO: need to merge anything?
-		"postures":        new(jwcc.Object),
-		"ssh":             new(jwcc.Array),
-		"tagOwners":       new(jwcc.Object),
-		"tests":           new(jwcc.Array),
+		"extraDNSRecords": "Array",
+		"groups":          "Object",
+		"nodeAttrs":       "Array", // TODO: need to merge anything?
+		"postures":        "Object",
+		"ssh":             "Array",
+		"tagOwners":       "Object",
+		"tests":           "Array",
 	}
 
 	childDocs, err := gatherChildren(*inChildDir)
@@ -92,7 +91,7 @@ func main() {
 	outputFile(parentDoc.Object)
 }
 
-func mergeDocs(sections map[string]any, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
+func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
 	for _, child := range childDocs {
 		for sectionKey, sectionObject := range sections {
 			section := child.Object.Find(sectionKey)
@@ -100,8 +99,7 @@ func mergeDocs(sections map[string]any, parentDoc *ParsedDocument, childDocs []*
 				continue
 			}
 
-			switch sectionType := sectionObject.(type) {
-			case *jwcc.Array:
+			if sectionObject == "Array" {
 				newArr := existingOrNewArray(*parentDoc.Object, sectionKey)
 				newArr.Values = append(newArr.Values, section.Value.(*jwcc.Array).Values...)
 
@@ -111,8 +109,7 @@ func mergeDocs(sections map[string]any, parentDoc *ParsedDocument, childDocs []*
 				} else {
 					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: section.Key, Value: newArr})
 				}
-
-			case *jwcc.Object:
+			} else if sectionObject == "Object" {
 				newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
 				for _, m := range section.Value.(*jwcc.Object).Members {
 					newObj.Members = append(newObj.Members, &jwcc.Member{Key: m.Key, Value: m.Value})
@@ -124,9 +121,8 @@ func mergeDocs(sections map[string]any, parentDoc *ParsedDocument, childDocs []*
 				} else {
 					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: section.Key, Value: newObj})
 				}
-
-			default:
-				return fmt.Errorf("unexpected type %T for [\"%s\"] from file [%s]", sectionType, sectionKey, parentDoc.Path)
+			} else {
+				return fmt.Errorf("unexpected type [%v] for [\"%s\"] from file [%s]", sectionObject, sectionKey, parentDoc.Path)
 			}
 
 			child.Object.Members = removeMember(child.Object, sectionKey)
