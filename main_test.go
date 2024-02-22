@@ -9,14 +9,16 @@ import (
 )
 
 func TestMergeDocsEmptyParent(t *testing.T) {
-	parent, err := jwcc.Parse(strings.NewReader(`{}`))
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		// empty parent
+	}`))
 	if err != nil {
 		t.Fatalf(`expected no error, got %v`, err)
 	}
 	parentDoc := parent.Value.(*jwcc.Object)
 
 	child, err := jwcc.Parse(strings.NewReader(`{
-		"goodpath": {"foo":"bar"} // one member
+		"goodpath": {"foo":"bar"}
 	}`))
 	if err != nil {
 		t.Fatalf(`expected no error, got %v`, err)
@@ -43,7 +45,7 @@ func TestMergeDocsEmptyParent(t *testing.T) {
 
 func TestMergeDocsParentWithDifferentMembers(t *testing.T) {
 	parent, err := jwcc.Parse(strings.NewReader(`{
-		"otherpath": {"foo":"bar", "bar":"foo"} // two members
+		"otherpath": {"foo":"bar", "bar":"foo"}
 	}`))
 	if err != nil {
 		t.Fatalf(`expected no error, got %v`, err)
@@ -115,36 +117,40 @@ func TestMergeDocsParentWithSameMember(t *testing.T) {
 }
 
 func TestExistingOrNewObject(t *testing.T) {
-	memberObject := new(jwcc.Object)
-	memberObject.Members = append(memberObject.Members, &jwcc.Member{Key: ast.String("foo"), Value: jwcc.ToValue("bar")})
+	child, err := jwcc.Parse(strings.NewReader(`{
+		"goodpath": {"foo":"bar"}
+	}`))
+	if err != nil {
+		t.Fatalf(`expected no error, got %v`, err)
+	}
+	childDoc := child.Value.(*jwcc.Object)
 
-	doc := &jwcc.Object{}
-	doc.Members = append(doc.Members, &jwcc.Member{Key: ast.String("goodpath"), Value: memberObject})
-
-	goodpathObject := existingOrNewObject(*doc, "goodpath")
+	goodpathObject := existingOrNewObject(*childDoc, "goodpath")
 	if len(goodpathObject.Members) != 1 {
 		t.Fatalf(`object members length should be 1, got %v`, len(goodpathObject.Members))
 	}
 
-	badpathObject := existingOrNewObject(*doc, "badpath")
+	badpathObject := existingOrNewObject(*childDoc, "badpath")
 	if len(badpathObject.Members) != 0 {
 		t.Fatalf(`object members length should be 0, got %v`, len(badpathObject.Members))
 	}
 }
 
 func TestExistingOrNewArray(t *testing.T) {
-	memberArray := new(jwcc.Array)
-	memberArray.Values = append(memberArray.Values, jwcc.ToValue("bar"))
+	child, err := jwcc.Parse(strings.NewReader(`{
+		"goodpath": ["bar"]
+	}`))
+	if err != nil {
+		t.Fatalf(`expected no error, got %v`, err)
+	}
+	childDoc := child.Value.(*jwcc.Object)
 
-	doc := &jwcc.Object{}
-	doc.Members = append(doc.Members, &jwcc.Member{Key: ast.String("goodpath"), Value: memberArray})
-
-	goodpathObject := existingOrNewArray(*doc, "goodpath")
+	goodpathObject := existingOrNewArray(*childDoc, "goodpath")
 	if len(goodpathObject.Values) != 1 {
 		t.Fatalf(`object members length should be 1, got %v`, len(goodpathObject.Values))
 	}
 
-	badpathObject := existingOrNewArray(*doc, "badpath")
+	badpathObject := existingOrNewArray(*childDoc, "badpath")
 	if len(badpathObject.Values) != 0 {
 		t.Fatalf(`object members length should be 0, got %v`, len(badpathObject.Values))
 	}
