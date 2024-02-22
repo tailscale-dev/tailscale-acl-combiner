@@ -22,6 +22,11 @@ var (
 	verbose      = flag.Bool("v", false, "enable verbose logging")
 )
 
+type ParsedDocument struct {
+	Path   string
+	Object *jwcc.Object
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: tailscale-acl-combiner [flags]\n")
 	flag.PrintDefaults()
@@ -43,7 +48,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	var parentDoc *jwcc.Object
+	var parentDoc *ParsedDocument
 	var err error
 	if *inParentFile != "" {
 		parentDoc, err = parse(*inParentFile)
@@ -51,8 +56,10 @@ func main() {
 			log.Fatal(err)
 		}
 	} else {
-		parentDoc = &jwcc.Object{
-			Members: make([]*jwcc.Member, 0),
+		parentDoc = &ParsedDocument{
+			Object: &jwcc.Object{
+				Members: make([]*jwcc.Member, 0),
+			},
 		}
 	}
 
@@ -60,15 +67,15 @@ func main() {
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
 	aclSections := map[string]any{
 		// TODO: create a type and use reflection instead?
-		"acls":            new(jwcc.Array),
-		"groups":          new(jwcc.Object),
-		"postures":        new(jwcc.Object),
-		"tagOwners":       new(jwcc.Object),
-		"autoApprovers":   nil, // "autoApprovers": new(jwcc.Object), // TODO: need to merge "routes" and "exitNodes" sub-sections
-		"ssh":             new(jwcc.Array),
-		"nodeAttrs":       new(jwcc.Array), // TODO: need to merge anything?
-		"tests":           new(jwcc.Array),
+		"acls": new(jwcc.Array),
+		// "autoApprovers" - autoApprovers should not be delegate (until we get feedback that they should)
 		"extraDNSRecords": new(jwcc.Array),
+		"groups":          new(jwcc.Object),
+		"nodeAttrs":       new(jwcc.Array), // TODO: need to merge anything?
+		"postures":        new(jwcc.Object),
+		"ssh":             new(jwcc.Array),
+		"tagOwners":       new(jwcc.Object),
+		"tests":           new(jwcc.Array),
 	}
 
 	childDocs, err := gatherChildren(*inChildDir)
@@ -81,53 +88,60 @@ func main() {
 		log.Fatal(err)
 	}
 
-	parentDoc.Sort() // TODO: make configurable via an arg?
-	outputFile(parentDoc)
+	parentDoc.Object.Sort() // TODO: make configurable via an arg?
+	outputFile(parentDoc.Object)
 }
 
-func mergeDocs(sections map[string]any, parentDoc *jwcc.Object, childDocs []*jwcc.Object) error {
+func mergeDocs(sections map[string]any, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
 	for _, child := range childDocs {
 		for sectionKey, sectionObject := range sections {
-			section := child.Find(sectionKey)
+			section := child.Object.Find(sectionKey)
 			if section == nil {
 				continue
 			}
 
 			switch sectionType := sectionObject.(type) {
 			case *jwcc.Array:
-				newArr := existingOrNewArray(*parentDoc, sectionKey)
+				newArr := existingOrNewArray(*parentDoc.Object, sectionKey)
 				newArr.Values = append(newArr.Values, section.Value.(*jwcc.Array).Values...)
 
-				index := parentDoc.IndexKey(ast.TextEqual(sectionKey))
+				index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
 				if index != -1 {
-					parentDoc.Members[index] = &jwcc.Member{Key: section.Key, Value: newArr}
+					parentDoc.Object.Members[index] = &jwcc.Member{Key: section.Key, Value: newArr}
 				} else {
-					parentDoc.Members = append(parentDoc.Members, &jwcc.Member{Key: section.Key, Value: newArr})
+					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: section.Key, Value: newArr})
 				}
 
 			case *jwcc.Object:
-				newObj := existingOrNewObject(*parentDoc, sectionKey)
+				newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
 				for _, m := range section.Value.(*jwcc.Object).Members {
 					newObj.Members = append(newObj.Members, &jwcc.Member{Key: m.Key, Value: m.Value})
 				}
 
-				index := parentDoc.IndexKey(ast.TextEqual(sectionKey))
+				index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
 				if index != -1 {
-					parentDoc.Members[index] = &jwcc.Member{Key: section.Key, Value: newObj}
+					parentDoc.Object.Members[index] = &jwcc.Member{Key: section.Key, Value: newObj}
 				} else {
-					parentDoc.Members = append(parentDoc.Members, &jwcc.Member{Key: section.Key, Value: newObj})
+					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: section.Key, Value: newObj})
 				}
 
 			default:
-				return fmt.Errorf("unexpected type %T for %s", sectionType, sectionKey)
+				return fmt.Errorf("unexpected type %T for [\"%s\"] from file [%s]", sectionType, sectionKey, parentDoc.Path)
 			}
+
+			child.Object.Members = removeMember(child.Object, sectionKey)
+		}
+
+		for _, remainingSection := range child.Object.Members {
+			// TODO: arg to log and not error on unsupported sections?
+			return fmt.Errorf("unsupported section [\"%s\"] in file [%s]", remainingSection.Key, parentDoc.Path)
 		}
 	}
 	return nil
 }
 
-func gatherChildren(path string) ([]*jwcc.Object, error) {
-	children := []*jwcc.Object{}
+func gatherChildren(path string) ([]*ParsedDocument, error) {
+	children := []*ParsedDocument{}
 
 	logVerbose(fmt.Sprintf("Walking path [%v]...\n", *inChildDir))
 	err := filepath.WalkDir(
@@ -186,7 +200,7 @@ func outputFile(doc *jwcc.Object) error {
 	return nil
 }
 
-func parse(path string) (*jwcc.Object, error) {
+func parse(path string) (*ParsedDocument, error) {
 	logVerbose(fmt.Sprintf("Parsing [%v]...\n", path))
 
 	f, err := os.Open(path)
@@ -205,7 +219,7 @@ func parse(path string) (*jwcc.Object, error) {
 		return nil, fmt.Errorf("invalid file format: document root is %T, expected object", doc.Value)
 	}
 
-	return root, nil
+	return &ParsedDocument{Path: path, Object: root}, nil
 }
 
 func existingOrNewArray(doc jwcc.Object, path string) *jwcc.Array { // TODO: combine with existingOrNewObject and pass in type?
@@ -222,6 +236,14 @@ func existingOrNewObject(doc jwcc.Object, path string) *jwcc.Object {
 		return new(jwcc.Object)
 	}
 	return existingSection.Value.(*jwcc.Object)
+}
+
+func removeMember(obj *jwcc.Object, key string) []*jwcc.Member {
+	indexKey := obj.IndexKey(ast.TextEqual(key))
+
+	ret := make([]*jwcc.Member, 0)
+	ret = append(ret, obj.Members[:indexKey]...)
+	return append(ret, obj.Members[indexKey+1:]...)
 }
 
 func logVerbose(message string) {

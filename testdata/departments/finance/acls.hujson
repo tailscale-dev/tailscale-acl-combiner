@@ -32,6 +32,7 @@
 				],
 	},	// trailing comment
 	// "autoApprovers": {
+	// 	// these should be ommitted/skipped from the final file
 	// 	"routes": {
 	// 		"10.0.0.0/24": ["group:engineering", "alice@example.com", "tag:foo"],
 	// 	},
