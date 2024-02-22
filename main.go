@@ -76,7 +76,7 @@ func mergeDocs(sections map[string]any, parentDoc *jwcc.Object, childDocs []*jwc
 
 			switch sectionType := sectionObject.(type) {
 			case *jwcc.Array:
-				newArr := existingOrNewArray(sectionKey, *parentDoc)
+				newArr := existingOrNewArray(*parentDoc, sectionKey)
 				newArr.Values = append(newArr.Values, section.Value.(*jwcc.Array).Values...)
 
 				index := parentDoc.IndexKey(ast.TextEqual(sectionKey))
@@ -87,7 +87,7 @@ func mergeDocs(sections map[string]any, parentDoc *jwcc.Object, childDocs []*jwc
 				}
 
 			case *jwcc.Object:
-				newObj := existingOrNewObject(sectionKey, *parentDoc)
+				newObj := existingOrNewObject(*parentDoc, sectionKey)
 				for _, m := range section.Value.(*jwcc.Object).Members {
 					newObj.Members = append(newObj.Members, &jwcc.Member{Key: m.Key, Value: m.Value})
 				}
@@ -189,7 +189,7 @@ func parse(path string) (*jwcc.Object, error) {
 	return root, nil
 }
 
-func existingOrNewArray(path string, doc jwcc.Object) *jwcc.Array { // TODO: reverse order of args? combine with existingOrNewObject and pass in type?
+func existingOrNewArray(doc jwcc.Object, path string) *jwcc.Array { // TODO: combine with existingOrNewObject and pass in type?
 	existingSection := doc.FindKey(ast.TextEqual(path))
 	if existingSection == nil {
 		return new(jwcc.Array)
@@ -197,7 +197,7 @@ func existingOrNewArray(path string, doc jwcc.Object) *jwcc.Array { // TODO: rev
 	return existingSection.Value.(*jwcc.Array)
 }
 
-func existingOrNewObject(path string, doc jwcc.Object) *jwcc.Object {
+func existingOrNewObject(doc jwcc.Object, path string) *jwcc.Object {
 	existingSection := doc.FindKey(ast.TextEqual(path))
 	if existingSection == nil {
 		return new(jwcc.Object)

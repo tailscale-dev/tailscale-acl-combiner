@@ -1,4 +1,4 @@
-module example.com // TODO
+module github.com/clstokes/tailscale-acl-combiner
 
 go 1.21
 
