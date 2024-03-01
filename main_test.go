@@ -171,3 +171,34 @@ func TestExistingOrNewArray(t *testing.T) {
 		t.Fatalf(`object members length should be 0, got %v`, len(badpathObject.Values))
 	}
 }
+
+func TestGetAllowedSections(t *testing.T) {
+	actualValue := "foo"
+	allowed := []string{"1", "2"}
+	defined := map[string]string{
+		"1": actualValue,
+		"2": actualValue,
+		"3": actualValue,
+	}
+	allowedAclSections := getAllowedSections(allowed, defined)
+
+	// should exist
+	section1 := allowedAclSections["1"]
+	if section1 != actualValue {
+		t.Fatalf(`section [%v] should be [%v], got %v`, "1", actualValue, section1)
+	}
+	section2 := allowedAclSections["2"]
+	if section2 != actualValue {
+		t.Fatalf(`section [%v] should be [%v], got %v`, "1", actualValue, section2)
+	}
+
+	// should not exist
+	section3 := allowedAclSections["3"]
+	if section3 != "" {
+		t.Fatalf(`section [%v] should be [%v], got %v`, "1", actualValue, section3)
+	}
+	sectionZ := allowedAclSections["Z"]
+	if sectionZ != "" {
+		t.Fatalf(`section [%v] should be [%v], got %v`, "1", actualValue, sectionZ)
+	}
+}
