@@ -16,11 +16,26 @@ import (
 )
 
 var (
-	inParentFile = flag.String("f", "", "parent file to load from")
-	inChildDir   = flag.String("d", "", "directory to process files from")
-	outFile      = flag.String("o", "", "file to write output to")
-	verbose      = flag.Bool("v", false, "enable verbose logging")
+	inParentFile       = flag.String("f", "", "parent file to load from")
+	inChildDir         = flag.String("d", "", "directory to process files from")
+	outFile            = flag.String("o", "", "file to write output to")
+	verbose            = flag.Bool("v", false, "enable verbose logging")
+	allowedAclSections aclSections
 )
+
+type aclSections []string
+
+func (i *aclSections) String() string {
+	return fmt.Sprintf("%s", *i)
+}
+
+func (i *aclSections) Set(value string) error {
+	values := strings.Split(value, ",")
+	for _, v := range values {
+		*i = append(*i, v)
+	}
+	return nil
+}
 
 type ParsedDocument struct {
 	Path   string
@@ -40,6 +55,7 @@ func checkArgs() error {
 }
 
 func main() {
+	flag.Var(&allowedAclSections, "allow", "acl sections to allow from children")
 	flag.Parse()
 	argsErr := checkArgs()
 	if argsErr != nil {
@@ -63,11 +79,16 @@ func main() {
 		}
 	}
 
+	childDocs, err := gatherChildren(*inChildDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
-	aclSections := map[string]string{
+	preDefinedAclSections := map[string]string{
 		"acls": "Array",
-		// "autoApprovers" - autoApprovers should not be delegate (until we get feedback that they should)
+		// "autoApprovers" - autoApprovers should not be delegated (until we get feedback that they should)
 		"extraDNSRecords": "Array",
 		"grants":          "Array",
 		"groups":          "Object",
@@ -78,22 +99,30 @@ func main() {
 		"tests":           "Array",
 	}
 
-	childDocs, err := gatherChildren(*inChildDir)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	aclSections := getAllowedSections(allowedAclSections, preDefinedAclSections)
 	err = mergeDocs(aclSections, parentDoc, childDocs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	parentDoc.Object.Sort() // TODO: make configurable via an arg?
+	parentDoc.Object.Sort()
 	outputFile(parentDoc.Object)
+}
+
+func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[string]string) map[string]string {
+	aclSections := map[string]string{}
+	// TODO: handle `newsection:Array` as input?
+	for _, v := range allowedAclSections {
+		logVerbose("Allowing [%v]\n", v)
+		aclSections[v] = preDefinedAclSections[v]
+	}
+	logVerbose("Allowing ACL sections [%v]\n", aclSections)
+	return aclSections
 }
 
 func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
 	for _, child := range childDocs {
+		// TODO: insert 'from <file>' comment into new doc
 		for sectionKey, sectionObject := range sections {
 			section := child.Object.Find(sectionKey)
 			if section == nil {
@@ -131,7 +160,7 @@ func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs 
 
 		for _, remainingSection := range child.Object.Members {
 			// TODO: arg to log and not error on unsupported sections?
-			return fmt.Errorf("unsupported section [\"%s\"] in file [%s]", remainingSection.Key, parentDoc.Path)
+			return fmt.Errorf("unsupported section [\"%s\"] in file [%s]", remainingSection.Key, child.Path)
 		}
 	}
 	return nil
@@ -140,7 +169,7 @@ func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs 
 func gatherChildren(path string) ([]*ParsedDocument, error) {
 	children := []*ParsedDocument{}
 
-	logVerbose(fmt.Sprintf("Walking path [%v]...\n", *inChildDir))
+	logVerbose(fmt.Sprintf("Walking path [%v]...\n", path))
 	err := filepath.WalkDir(
 		*inChildDir,
 		func(path string, info fs.DirEntry, err error) error {
@@ -243,8 +272,8 @@ func removeMember(obj *jwcc.Object, key string) []*jwcc.Member {
 	return append(ret, obj.Members[indexKey+1:]...)
 }
 
-func logVerbose(message string) {
+func logVerbose(message string, a ...any) {
 	if *verbose {
-		os.Stderr.WriteString(message)
+		os.Stderr.WriteString(fmt.Sprintf(message, a...))
 	}
 }
