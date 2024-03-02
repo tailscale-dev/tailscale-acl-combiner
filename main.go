@@ -91,10 +91,10 @@ func main() {
 
 	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
-	// TODO: worry about casing? mainly -allow arg not maching casing?
+	// TODO: worry about casing? mainly -allow arg not matching casing?
 	preDefinedAclSections := map[string]string{
-		"acls": typeArray,
 		// "autoApprovers" - autoApprovers should not be delegated (until we get feedback that they should)
+		"acls":            typeArray,
 		"extraDNSRecords": typeArray,
 		"grants":          typeArray,
 		"groups":          typeObject,
@@ -127,34 +127,40 @@ func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[s
 
 func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
 	for _, child := range childDocs {
-		// TODO: insert 'from <file>' comment into new doc
 		for sectionKey, sectionObject := range sections {
-			section := child.Object.Find(sectionKey)
-			if section == nil {
+			childSection := child.Object.Find(sectionKey)
+			if childSection == nil {
 				continue
 			}
 
 			if sectionObject == typeArray {
 				newArr := existingOrNewArray(*parentDoc.Object, sectionKey)
-				newArr.Values = append(newArr.Values, section.Value.(*jwcc.Array).Values...)
+				childArrValues := childSection.Value.(*jwcc.Array).Values
+
+				for i := range childArrValues {
+					childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", child.Path)} // TODO: only insert once per file
+					newArr.Values = append(newArr.Values, childArrValues[i])
+				}
 
 				index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
 				if index != -1 {
-					parentDoc.Object.Members[index] = &jwcc.Member{Key: section.Key, Value: newArr}
+					parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newArr}
 				} else {
-					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: section.Key, Value: newArr})
+					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newArr})
 				}
 			} else if sectionObject == typeObject {
 				newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
-				for _, m := range section.Value.(*jwcc.Object).Members {
-					newObj.Members = append(newObj.Members, &jwcc.Member{Key: m.Key, Value: m.Value})
+				for _, m := range childSection.Value.(*jwcc.Object).Members {
+					newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
+					newMember.Comments().Before = []string{fmt.Sprintf("from %s", child.Path)} // TODO: only insert once per file
+					newObj.Members = append(newObj.Members, newMember)
 				}
 
 				index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
 				if index != -1 {
-					parentDoc.Object.Members[index] = &jwcc.Member{Key: section.Key, Value: newObj}
+					parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newObj}
 				} else {
-					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: section.Key, Value: newObj})
+					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newObj})
 				}
 			} else {
 				return fmt.Errorf("unexpected type [%v] for [\"%s\"] from file [%s]", sectionObject, sectionKey, parentDoc.Path)
@@ -253,19 +259,23 @@ func parse(path string) (*ParsedDocument, error) {
 	return &ParsedDocument{Path: path, Object: root}, nil
 }
 
-func existingOrNewArray(doc jwcc.Object, path string) *jwcc.Array { // TODO: combine with existingOrNewObject and pass in type?
-	existingSection := doc.FindKey(ast.TextEqual(path))
+func existingOrNewArray(doc jwcc.Object, key string) *jwcc.Array { // TODO: combine with existingOrNewObject and pass in type?
+	existingSection := doc.FindKey(ast.TextEqual(key))
 	if existingSection == nil {
+		logVerbose("section [%s] not found in parent doc, creating new array\n", key)
 		return new(jwcc.Array)
 	}
+	logVerbose("section [%s] found in parent doc, re-using array\n", key)
 	return existingSection.Value.(*jwcc.Array)
 }
 
-func existingOrNewObject(doc jwcc.Object, path string) *jwcc.Object {
-	existingSection := doc.FindKey(ast.TextEqual(path))
+func existingOrNewObject(doc jwcc.Object, key string) *jwcc.Object {
+	existingSection := doc.FindKey(ast.TextEqual(key))
 	if existingSection == nil {
+		logVerbose("section [%s] not found in parent doc, creating new object\n", key)
 		return new(jwcc.Object)
 	}
+	logVerbose("section [%s] found in parent doc, re-using object\n", key)
 	return existingSection.Value.(*jwcc.Object)
 }
 
