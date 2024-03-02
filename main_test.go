@@ -172,6 +172,28 @@ func TestExistingOrNewArray(t *testing.T) {
 	}
 }
 
+func TestRemoveMember(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		"goodpath": {"bar":"foo"}
+	}`))
+	if err != nil {
+		t.Fatalf(`expected no error, got %v`, err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+	}
+
+	sameMembers := removeMember(parentDoc.Object, "NOTHING_TO_REMOVE")
+	if len(sameMembers) != 1 {
+		t.Fatalf(`members count should be [%v], got %v`, 1, len(sameMembers))
+	}
+
+	removedMembers := removeMember(parentDoc.Object, "goodpath")
+	if len(removedMembers) != 0 {
+		t.Fatalf(`members count should be [%v], got %v`, 0, len(removedMembers))
+	}
+}
+
 func TestGetAllowedSections(t *testing.T) {
 	actualValue := "foo"
 	allowed := []string{"1", "2"}
