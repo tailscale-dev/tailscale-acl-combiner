@@ -28,6 +28,10 @@ var (
 	allowedAclSections aclSections
 )
 
+type ParsedDocument struct {
+	Path   string
+	Object *jwcc.Object
+}
 type aclSections []string
 
 func (i *aclSections) String() string {
@@ -42,19 +46,20 @@ func (i *aclSections) Set(value string) error {
 	return nil
 }
 
-type ParsedDocument struct {
-	Path   string
-	Object *jwcc.Object
-}
-
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: tailscale-acl-combiner [flags]\n")
 	flag.PrintDefaults()
 }
 
 func checkArgs() error {
+	if *inParentFile == "" {
+		return errors.New("missing argument -f - a parent file must be provided")
+	}
 	if *inChildDir == "" {
-		return errors.New("missing argument -d - no directory provided to process files from")
+		return errors.New("missing argument -d - a directory of child files to process must be provided")
+	}
+	if len(allowedAclSections) == 0 {
+		return errors.New("missing argument -allow - a list of acl sections to allow from children must be provided - e.g. -allow=acls,ssh")
 	}
 	return nil
 }
@@ -127,6 +132,11 @@ func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[s
 
 func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
 	for _, child := range childDocs {
+		if child.Path == parentDoc.Path {
+			logVerbose("skipping [%s], same doc as parent\n", child.Path)
+			continue
+		}
+
 		for sectionKey, sectionObject := range sections {
 			childSection := child.Object.Find(sectionKey)
 			if childSection == nil {
