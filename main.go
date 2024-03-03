@@ -143,12 +143,16 @@ func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs 
 				continue
 			}
 
+			sectionHeaderAlreadyPrinted := false
 			if sectionObject == typeArray {
 				newArr := existingOrNewArray(*parentDoc.Object, sectionKey)
 				childArrValues := childSection.Value.(*jwcc.Array).Values
 
 				for i := range childArrValues {
-					childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", child.Path)} // TODO: only insert once per file
+					if !sectionHeaderAlreadyPrinted {
+						childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", child.Path)} // TODO: only insert once per file
+						sectionHeaderAlreadyPrinted = true
+					}
 					newArr.Values = append(newArr.Values, childArrValues[i])
 				}
 
@@ -162,7 +166,10 @@ func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs 
 				newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
 				for _, m := range childSection.Value.(*jwcc.Object).Members {
 					newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
-					newMember.Comments().Before = []string{fmt.Sprintf("from %s", child.Path)} // TODO: only insert once per file
+					if !sectionHeaderAlreadyPrinted {
+						newMember.Comments().Before = []string{fmt.Sprintf("from %s", child.Path)} // TODO: only insert once per file
+						sectionHeaderAlreadyPrinted = true
+					}
 					newObj.Members = append(newObj.Members, newMember)
 				}
 
