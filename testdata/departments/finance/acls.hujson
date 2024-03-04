@@ -1,18 +1,9 @@
 {
 	"acls": [
-		{ // finance1
+		{ // group2
 			"action": "accept",
 			"src": [
-				"finance1@tsjustworks.net",
-			],
-			"dst": [
-				"tag:demo-infra:22",
-			],
-		},
-		{ // finance2
-			"action": "accept",
-			"src": [
-				"finance2@tsjustworks.net",
+				"group2@tsjustworks.net",
 			],
 			"dst": [
 				"tag:demo-infra:22",
@@ -39,9 +30,6 @@
 		"tag:dave": [		
 
 				],
-		"tag:joe": [		
-
-				],
 	},	// trailing comment
 	// "autoApprovers": {
 	// 	// these should be ommitted/skipped from the final file
@@ -50,6 +38,20 @@
 	// 	},
 	// 	"exitNode": ["tag:bar"],
 	// },
+	"ssh": [
+		{
+		  "action": "accept",
+		  "src": ["autogroup:member"],
+		  "dst": ["tag:prod"],
+		  "users": ["root", "autogroup:nonroot"]
+		},
+		{
+		  "action": "accept",
+		  "src": ["tag:logging"],
+		  "dst": ["tag:prod"],
+		  "users": ["root", "autogroup:nonroot"]
+		},
+	  ]	,
 	  "nodeAttrs": [
 		{
 			"target": ["my-kid@my-home.com", "tag:server"],
