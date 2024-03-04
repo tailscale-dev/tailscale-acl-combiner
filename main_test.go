@@ -171,3 +171,56 @@ func TestExistingOrNewArray(t *testing.T) {
 		t.Fatalf(`object members length should be 0, got %v`, len(badpathObject.Values))
 	}
 }
+
+func TestRemoveMember(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		"goodpath": {"bar":"foo"}
+	}`))
+	if err != nil {
+		t.Fatalf(`expected no error, got %v`, err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+	}
+
+	sameMembers := removeMember(parentDoc.Object, "NOTHING_TO_REMOVE")
+	if len(sameMembers) != 1 {
+		t.Fatalf(`members count should be [%v], got %v`, 1, len(sameMembers))
+	}
+
+	removedMembers := removeMember(parentDoc.Object, "goodpath")
+	if len(removedMembers) != 0 {
+		t.Fatalf(`members count should be [%v], got %v`, 0, len(removedMembers))
+	}
+}
+
+func TestGetAllowedSections(t *testing.T) {
+	actualValue := "foo"
+	allowed := []string{"1", "2"}
+	defined := map[string]string{
+		"1": actualValue,
+		"2": actualValue,
+		"3": actualValue,
+	}
+	allowedAclSections := getAllowedSections(allowed, defined)
+
+	// should exist
+	section1 := allowedAclSections["1"]
+	if section1 != actualValue {
+		t.Fatalf(`section [%v] should be [%v], got %v`, "1", actualValue, section1)
+	}
+	section2 := allowedAclSections["2"]
+	if section2 != actualValue {
+		t.Fatalf(`section [%v] should be [%v], got %v`, "1", actualValue, section2)
+	}
+
+	// should not exist
+	section3 := allowedAclSections["3"]
+	if section3 != "" {
+		t.Fatalf(`section [%v] should be [%v], got %v`, "1", actualValue, section3)
+	}
+	sectionZ := allowedAclSections["Z"]
+	if sectionZ != "" {
+		t.Fatalf(`section [%v] should be [%v], got %v`, "1", actualValue, sectionZ)
+	}
+}
