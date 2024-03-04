@@ -11,17 +11,4 @@
 	"tagOwners": {
 		"tag:parent": [],
 	},
-
-	"groups": {
-		"group:parent": ["from-parent"],
-	},
-
-	"ssh": [
-		{
-		  "action": "accept",
-		  "src": ["autogroup:member"],
-		  "dst": ["autogroup:self"],
-		  "users": ["root", "autogroup:nonroot"]
-		},
-	  ],
 }
