@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -41,8 +40,6 @@ func TestMergeDocsEmptyParent(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	fmt.Printf("members [%v]", parentDoc.Object.Members)
-
 	if len(parentDoc.Object.Members) != 1 {
 		t.Fatalf("parent members length should be 1, got %v", len(parentDoc.Object.Members))
 	}
@@ -64,9 +61,9 @@ func TestMergeDocsParentWithDifferentMembers(t *testing.T) {
 		Path:   "parent",
 	}
 
-	child, err := jwcc.Parse(strings.NewReader("{
+	child, err := jwcc.Parse(strings.NewReader(`{
 		"goodpath": {"foo":"bar"}
-	}"))
+	}`))
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
