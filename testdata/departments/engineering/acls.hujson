@@ -1,16 +1,40 @@
 {
-	"extraDNSRecords": [
-		{
-			"Name":  "my.example.test",
-			"Value": "100.100.100.100",
-		},
-	],
+	// "extraDNSRecords": [
+	// 	{
+	// 		"Name":  "my.example.test",
+	// 		"Value": "100.100.100.100",
+	// 	},
+	// ],
 	// leading comment
 	"acls": [
-		{ // group1
+		{ // engineering1
 			"action": "accept",
 			"src": [
-				"group1@tsjustworks.net",
+				"engineering1@tsjustworks.net",
+			],
+			"dst": [
+				"tag:demo-infra:22",
+			],
+			"srcPosture": [
+				"posture:latestMac",
+			],
+		},
+		{ // engineering2
+			"action": "accept",
+			"src": [
+				"engineering2@tsjustworks.net",
+			],
+			"dst": [
+				"tag:demo-infra:22",
+			],
+			"srcPosture": [
+				"posture:latestMac",
+			],
+		},
+		{ // engineering3
+			"action": "accept",
+			"src": [
+				"engineering3@tsjustworks.net",
 			],
 			"dst": [
 				"tag:demo-infra:22",
@@ -44,7 +68,7 @@
 	"ssh": [
 		{
 		  "action": "accept",
-		  "src": ["autogroup:member"],
+		  "src": ["group:finance"],
 		  "dst": ["autogroup:self"],
 		  "users": ["root", "autogroup:nonroot"]
 		},
