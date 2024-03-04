@@ -150,7 +150,7 @@ func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs 
 
 				for i := range childArrValues {
 					if !sectionHeaderAlreadyPrinted {
-						childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", child.Path)} // TODO: only insert once per file
+						childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", child.Path)}
 						sectionHeaderAlreadyPrinted = true
 					}
 					newArr.Values = append(newArr.Values, childArrValues[i])
@@ -167,7 +167,7 @@ func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs 
 				for _, m := range childSection.Value.(*jwcc.Object).Members {
 					newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
 					if !sectionHeaderAlreadyPrinted {
-						newMember.Comments().Before = []string{fmt.Sprintf("from %s", child.Path)} // TODO: only insert once per file
+						newMember.Comments().Before = []string{fmt.Sprintf("from %s", child.Path)}
 						sectionHeaderAlreadyPrinted = true
 					}
 					newObj.Members = append(newObj.Members, newMember)
