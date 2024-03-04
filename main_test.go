@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -17,6 +18,7 @@ func TestMergeDocsEmptyParent(t *testing.T) {
 	}
 	parentDoc := &ParsedDocument{
 		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
 	}
 
 	child, err := jwcc.Parse(strings.NewReader(`{
@@ -27,6 +29,7 @@ func TestMergeDocsEmptyParent(t *testing.T) {
 	}
 	childDoc := &ParsedDocument{
 		Object: child.Value.(*jwcc.Object),
+		Path:   "child",
 	}
 
 	sections := map[string]string{
@@ -37,6 +40,8 @@ func TestMergeDocsEmptyParent(t *testing.T) {
 	if err != nil {
 		t.Fatalf(`expected no error, got %v`, err)
 	}
+
+	fmt.Printf("members [%v]", parentDoc.Object.Members)
 
 	if len(parentDoc.Object.Members) != 1 {
 		t.Fatalf(`parent members length should be 1, got %v`, len(parentDoc.Object.Members))
@@ -56,6 +61,7 @@ func TestMergeDocsParentWithDifferentMembers(t *testing.T) {
 	}
 	parentDoc := &ParsedDocument{
 		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
 	}
 
 	child, err := jwcc.Parse(strings.NewReader(`{
@@ -66,6 +72,7 @@ func TestMergeDocsParentWithDifferentMembers(t *testing.T) {
 	}
 	childDoc := &ParsedDocument{
 		Object: child.Value.(*jwcc.Object),
+		Path:   "child",
 	}
 
 	sections := map[string]string{
@@ -91,6 +98,7 @@ func TestMergeDocsParentWithSameMember(t *testing.T) {
 	}
 	parentDoc := &ParsedDocument{
 		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
 	}
 
 	child, err := jwcc.Parse(strings.NewReader(`{
@@ -101,6 +109,7 @@ func TestMergeDocsParentWithSameMember(t *testing.T) {
 	}
 	childDoc := &ParsedDocument{
 		Object: child.Value.(*jwcc.Object),
+		Path:   "child",
 	}
 
 	sections := map[string]string{
