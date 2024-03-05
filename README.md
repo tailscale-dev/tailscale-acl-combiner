@@ -36,6 +36,10 @@ tailscale-acl-combiner -f testdata/input-parent.hujson -d testdata/departments -
 }
 ```
 
+### Example with Github Actions
+
+See [.github/workflows/tailscale-acl-combiner.yaml](.github/workflows/tailscale-acl-combiner.yaml) in this repo.
+
 ## Limitations
 
 - Top-level objects and arrays are appended, not merged.
