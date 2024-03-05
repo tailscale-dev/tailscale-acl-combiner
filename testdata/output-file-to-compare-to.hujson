@@ -1,0 +1,154 @@
+{
+  "RandomizeClientPort": true, // inline comment
+
+  "acls": [
+    // from testdata/departments/engineering/acls.hujson
+    {
+      // engineering1
+      "action": "accept",
+
+      "src":        ["engineering1@tsjustworks.net"],
+      "dst":        ["tag:demo-infra:22"],
+      "srcPosture": ["posture:latestMac"],
+    },
+    {
+      // engineering2
+      "action": "accept",
+
+      "src":        ["engineering2@tsjustworks.net"],
+      "dst":        ["tag:demo-infra:22"],
+      "srcPosture": ["posture:latestMac"],
+    },
+    {
+      // engineering3
+      "action": "accept",
+
+      "src":        ["engineering3@tsjustworks.net"],
+      "dst":        ["tag:demo-infra:22"],
+      "srcPosture": ["posture:latestMac"],
+    },
+    // from testdata/departments/finance/acls.hujson
+    {
+      // finance1
+      "action": "accept",
+
+      "src": ["finance1@tsjustworks.net"],
+      "dst": ["tag:demo-infra:22"],
+    },
+    {
+      // finance2
+      "action": "accept",
+
+      "src": ["finance2@tsjustworks.net"],
+      "dst": ["tag:demo-infra:22"],
+    },
+  ],
+
+  "extraDNSRecords": [
+    {
+      "Name":  "exra.dns.records",
+      "Value": "100.100.100.100",
+    },
+  ],
+
+  "grants": [
+    // from testdata/departments/engineering/grants.hujson
+    {
+      //"src": ["group:prod"],
+      "src": ["allen@tsjustworks.net"],
+
+      "dst": ["tag:k8s-operator"],
+      "app": {"tailscale.com/cap/kubernetes": [{"impersonate":{"groups":["system:masters"]}}]},
+    },
+  ],
+
+  "groups": {
+    "group:parent": ["from-parent"],
+
+    // from testdata/departments/engineering/groups.hujson
+    "group:group1": ["cameron@tsjustworks.net"],
+
+    // from testdata/departments/finance/acls.hujson
+    "group:group2": ["allen@tsjustworks.net"],
+  },
+
+  "nodeAttrs": [
+    {
+      "target": ["*"],
+
+      "app": {
+        "tailscale.com/app-connectors": [
+          {
+            "name":       "github",
+            "connectors": ["tag:demo-appconnector"],
+            "domains":    ["github.com", "*.github.com"],
+          },
+        ],
+      },
+    },
+    {
+      // mullvad for all admins
+      "attr": ["mullvad"],
+
+      "target": ["autogroup:admin"],
+    },
+    {
+      "target": ["my-kid@my-home.com", "tag:server"],
+      "attr":   ["nextdns:abc123", "nextdns:no-device-info"],
+    },
+  ],
+
+  "postures": {"posture:latestMac": ["node:os IN ['macos', 'linux']","node:tsReleaseTrack == 'stable'","node:tsVersion >= '1.40'"]},
+
+  "ssh": [
+    {
+      "action": "accept",
+      "src":    ["autogroup:member"],
+      "dst":    ["autogroup:self"],
+      "users":  ["root", "autogroup:nonroot"],
+    },
+    // from testdata/departments/engineering/acls.hujson
+    {
+      "action": "accept",
+      "src":    ["group:finance"],
+      "dst":    ["autogroup:self"],
+      "users":  ["root", "autogroup:nonroot"],
+    },
+    // from testdata/departments/finance/ssh.hujson
+    {
+      "action": "accept",
+      "src":    ["autogroup:member"],
+      "dst":    ["tag:prod"],
+      "users":  ["root", "autogroup:nonroot"],
+    },
+    {
+      "action": "accept",
+      "src":    ["tag:logging"],
+      "dst":    ["tag:prod"],
+      "users":  ["root", "autogroup:nonroot"],
+    },
+  ],
+
+  "tagOwners": {
+    "tag:parent":  [],
+    "tag:cameron": ["autogroup:member"],
+    "tag:dave":    [],
+    "tag:jane":    [],
+  },
+
+  "tests": [
+    // from testdata/departments/engineering/acls.hujson
+    {
+      "src":    "cameron@example.com",
+      "accept": ["tag:cameron:22"],
+    },
+    // from testdata/departments/finance/acls.hujson
+    {
+      "src":             "dave@example.com",
+      "srcPostureAttrs": {"node:os": "windows"},
+      "proto":           "tcp",
+      "accept":          ["example-host-1:22", "vega:80"],
+      "deny":            ["1.2.3.4:443"],
+    },
+  ],
+}

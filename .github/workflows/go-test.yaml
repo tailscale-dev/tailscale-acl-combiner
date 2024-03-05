@@ -1,4 +1,4 @@
-name: Run go tests
+name: go - Run tests
 
 on:
   pull_request:
@@ -15,4 +15,4 @@ jobs:
           go-version-file: go.mod
 
       - run: |
-          go test
+          go test -v
