@@ -30,34 +30,9 @@
 			"srcPostureAttrs": {
 				"node:os": "windows",
 			},
-			"proto": "tcp",
+			"proto":  "tcp",
 			"accept": ["example-host-1:22", "vega:80"],
-			"deny": ["1.2.3.4:443"],
+			"deny":   ["1.2.3.4:443"],
 		},
 	],
-	"tagOwners": {
-		"tag:dave": [		
-
-				],
-		"tag:joe": [		
-
-				],
-	},	// trailing comment
-	// "autoApprovers": {
-	// 	// these should be ommitted/skipped from the final file
-	// 	"routes": {
-	// 		"10.0.0.0/24": ["group:engineering", "alice@example.com", "tag:foo"],
-	// 	},
-	// 	"exitNode": ["tag:bar"],
-	// },
-	  "nodeAttrs": [
-		{
-			"target": ["my-kid@my-home.com", "tag:server"],
-			"attr": [
-				"nextdns:abc123",
-				"nextdns:no-device-info",
-			],
-		},
-	],
-	
 }

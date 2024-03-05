@@ -1,17 +1,16 @@
 {
 	"ssh": [
 		{
-		  "action": "accept",
-		  "src": ["autogroup:member"],
-		  "dst": ["tag:prod"],
-		  "users": ["root", "autogroup:nonroot"]
+			"action": "accept",
+			"src":    ["autogroup:member"],
+			"dst":    ["tag:prod"],
+			"users":  ["root", "autogroup:nonroot"],
 		},
 		{
-		  "action": "accept",
-		  "src": ["tag:logging"],
-		  "dst": ["tag:prod"],
-		  "users": ["root", "autogroup:nonroot"]
+			"action": "accept",
+			"src":    ["tag:logging"],
+			"dst":    ["tag:prod"],
+			"users":  ["root", "autogroup:nonroot"],
 		},
-	  ]	
-	  ,
+	],
 }
