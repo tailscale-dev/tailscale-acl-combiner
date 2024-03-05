@@ -1,0 +1,26 @@
+name: tailscale-acl-combiner - Generate and check against known artifact
+
+on:
+  push:
+
+jobs:
+  tailscale-acl-combiner:
+    runs-on: ubuntu-latest
+    env:
+      ACL_FILE_TO_GENERATE: generated.hujson
+      ACL_FILE_TO_COMPARE_TO: testdata/output-file-to-compare-to.hujson
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: generate file
+        run: |
+          go build -o tmp-tailscale-acl-combiner
+          ./tmp-tailscale-acl-combiner -f testdata/input-parent.hujson -d testdata/departments -allow acls,extraDNSRecords,grants,groups,ssh,tests -o $ACL_FILE_TO_GENERATE
+
+      - name: compare generated file
+        run: |
+          diff -c $ACL_FILE_TO_COMPARE_TO $ACL_FILE_TO_GENERATE
+          echo 'Success: files match!'
