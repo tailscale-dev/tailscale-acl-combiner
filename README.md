@@ -7,20 +7,20 @@ A CLI tool to facilitate delegation of managing Tailscale ACLs across multiple p
 ## Usage
 
 ```shell
-$ go run main.go -f <parent-file> -d <directory-of-child-files>
+$ go run main.go -f <parent-file> -d <directory-of-child-files> -allow <acl-sections-to-allow>
 ...
 ```
 
 For example, using the `testdata` directory in this repo:
 
 ```shell
-$ go run main.go -f testdata/parent.hujson -d testdata/departments
+$ tailscale-acl-combiner -f testdata/input-parent.hujson -d testdata/departments -allow acls,extraDNSRecords,grants,groups,ssh,tests
 {
   "acls": [
-    // acls from `testdata/parent.hujson` and any files found under `testdata/departments`
+    // acls from `testdata/input-parent.hujson` and any files found under `testdata/departments`
   ],
   "groups": [
-    // groups from `testdata/parent.hujson` and any files found under `testdata/departments`
+    // groups from `testdata/input-parent.hujson` and any files found under `testdata/departments`
   ],
   // etc
 }
