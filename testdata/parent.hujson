@@ -8,20 +8,59 @@
 		},
 	],
 
-	"tagOwners": {
-		"tag:parent": [],
-	},
-
 	"groups": {
 		"group:parent": ["from-parent"],
 	},
 
+	"nodeAttrs": [
+		{
+			"target": ["*"],
+			"app": {
+				"tailscale.com/app-connectors": [
+					{
+						"name":       "github",
+						"connectors": ["tag:demo-appconnector"],
+						"domains":    ["github.com", "*.github.com"],
+					},
+				],
+			},
+		},
+		{ // mullvad for all admins
+			"attr":   ["mullvad"],
+			"target": ["autogroup:admin"],
+		},
+		{
+			"target": ["my-kid@my-home.com", "tag:server"],
+			"attr": [
+				"nextdns:abc123",
+				"nextdns:no-device-info",
+			],
+		},
+	],
+
+	"postures": {
+		"posture:latestMac": [
+			"node:os IN ['macos', 'linux']",
+			"node:tsReleaseTrack == 'stable'",
+			"node:tsVersion >= '1.40'",
+		],
+	},
+
 	"ssh": [
 		{
-		  "action": "accept",
-		  "src": ["autogroup:member"],
-		  "dst": ["autogroup:self"],
-		  "users": ["root", "autogroup:nonroot"]
+			"action": "accept",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["root", "autogroup:nonroot"],
 		},
-	  ],
+	],
+
+	"tagOwners": {
+		"tag:parent": [],
+		"tag:cameron": [
+			"autogroup:member",
+		],
+		"tag:dave": [],
+		"tag:jane": [],
+	},
 }
