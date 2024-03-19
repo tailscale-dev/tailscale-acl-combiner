@@ -36,6 +36,3 @@ jobs:
           api-key: blah
           tailnet: cameronstokes.com
           action: apply
-        run: |
-          which go
-          which gitops-acl-action
