@@ -17,6 +17,7 @@ jobs:
       - name: env
         run: |
           env
+          echo "GOBIN=/home/runner/go/bin" >> "$GITHUB_ENV"
 
       - name: go version
         run: |
