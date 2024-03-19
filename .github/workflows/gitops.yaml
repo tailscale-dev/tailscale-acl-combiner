@@ -7,20 +7,21 @@ jobs:
   gitops-test:
     runs-on: ubuntu-latest
     env:
-      ACL_FILE_TO_GENERATE: generated.hujson
-      ACL_FILE_TO_COMPARE_TO: testdata/output-file-to-compare-to.hujson
+      GOBIN: /home/runner/go/bin
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      # - name: Deploy ACL
-      #   uses: tailscale/gitops-acl-action@v1
-      #   with:
-      #     api-key: blah
-      #     tailnet: cameronstokes.com
-      #     action: apply
+      - name: Deploy ACL
+        uses: tailscale/gitops-acl-action@v1
+        env:
+          GOBIN: /home/runner/go/bin
+        with:
+          api-key: blah
+          tailnet: cameronstokes.com
+          action: apply
 
       - name: env
         run: |
@@ -28,4 +29,5 @@ jobs:
 
       - name: go version
         run: |
+          which go
           go version
