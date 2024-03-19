@@ -23,10 +23,14 @@ jobs:
           which go
           go version
 
+      - name: go install 
+        run: |
+          go install github.com/clstokes/tailscale-acl-combiner@latest
+
       - name: Deploy ACL
         uses: tailscale/gitops-acl-action@v1
-        env:
-          GOBIN: /home/runner/go/bin
+        # env:
+        #   GOBIN: /home/runner/go/bin
         with:
           api-key: blah
           tailnet: cameronstokes.com
