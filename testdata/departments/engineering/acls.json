@@ -1,0 +1,16 @@
+{
+	"acls": [
+		{
+			"action": "accept",
+			"src": [
+				"json-rule@tsjustworks.net"
+			],
+			"dst": [
+				"tag:json-rule:22"
+			],
+			"srcPosture": [
+				"posture:latestMac"
+			]
+		}
+	]
+}

@@ -27,6 +27,13 @@
       "dst":        ["tag:demo-infra:22"],
       "srcPosture": ["posture:latestMac"],
     },
+    // from testdata/departments/engineering/acls.json
+    {
+      "action":     "accept",
+      "src":        ["json-rule@tsjustworks.net"],
+      "dst":        ["tag:json-rule:22"],
+      "srcPosture": ["posture:latestMac"],
+    },
     // from testdata/departments/finance/acls.hujson
     {
       // finance1
