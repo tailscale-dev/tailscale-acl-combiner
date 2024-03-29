@@ -7,7 +7,7 @@ A CLI tool to facilitate delegation of managing Tailscale ACLs across multiple p
 ## Installation
 
 ```shell
-go install github.com/clstokes/tailscale-acl-combiner@latest
+go install github.com/tailscale-dev/tailscale-acl-combiner@latest
 ```
 
 ## Usage

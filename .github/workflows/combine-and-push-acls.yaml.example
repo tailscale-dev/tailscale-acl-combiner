@@ -22,7 +22,7 @@ jobs:
 
       - name: install tailscale-acl-combiner
         run: |
-          go install github.com/clstokes/tailscale-acl-combiner@latest
+          go install github.com/tailscale-dev/tailscale-acl-combiner@latest
 
       - name: generate file and compare to committed file
         run: |

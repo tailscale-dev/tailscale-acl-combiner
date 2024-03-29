@@ -1,4 +1,4 @@
-module github.com/clstokes/tailscale-acl-combiner
+module github.com/tailscale-dev/tailscale-acl-combiner
 
 go 1.21
 
