@@ -1,0 +1,54 @@
+name: push-acls
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+env:
+  ACL_PARENT_FILE: "testdata/input-parent.hujson"
+  ACL_CHILD_DIR: "testdata/departments"
+  ACL_SECTIONS_ALLOWED: "acls,extraDNSRecords,grants,groups,ssh,tests"
+
+jobs:
+  acls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22.0'
+
+      - name: install tailscale-acl-combiner
+        run: |
+          go install github.com/clstokes/tailscale-acl-combiner@latest
+
+      - name: generate file and compare to committed file
+        run: |
+          tailscale-acl-combiner \
+            -f $ACL_PARENT_FILE \
+            -d $ACL_CHILD_DIR \
+            -allow $ACL_SECTIONS_ALLOWED \
+            -o $RUNNER_TEMP/generated-by-pull-request.hujson
+          diff -c policy.hujson $RUNNER_TEMP/generated-by-pull-request.hujson
+
+      - name: Test ACL
+        if: github.event_name == 'pull_request'
+        id: test-acl
+        uses: tailscale/gitops-acl-action@v1
+        with:
+          tailnet: ${{ vars.TS_TAILNET }}
+          oauth-client-id: ${{ vars.TS_OAUTH_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET  }}
+          action: test
+
+      - name: Deploy ACL
+        if: github.event_name == 'push'
+        id: deploy-acl
+        uses: tailscale/gitops-acl-action@v1
+        with:
+          tailnet: ${{ vars.TS_TAILNET }}
+          oauth-client-id: ${{ vars.TS_OAUTH_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET  }}
+          action: apply
