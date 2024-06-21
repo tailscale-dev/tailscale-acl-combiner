@@ -25,8 +25,14 @@ var (
 	inChildDir         = flag.String("d", "", "directory to process files from")
 	outFile            = flag.String("o", "", "file to write output to")
 	verbose            = flag.Bool("v", false, "enable verbose logging")
+	version            = flag.Bool("version", false, "print version and exit")
 	allowedAclSections aclSections
+
+	// build flags
+	Version = "snapshot"
+	Commit = "unknown"
 )
+
 
 type ParsedDocument struct {
 	Path   string
@@ -67,6 +73,10 @@ func checkArgs() error {
 func main() {
 	flag.Var(&allowedAclSections, "allow", "acl sections to allow from children")
 	flag.Parse()
+	if *version {
+		fmt.Printf("%s-%s\n", Version, Commit)
+		os.Exit(0)
+	}
 	argsErr := checkArgs()
 	if argsErr != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", argsErr)
