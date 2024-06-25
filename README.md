@@ -19,16 +19,6 @@ tailscale-acl-combiner -f <parent-file> -d <directory-of-child-files> -allow <ac
 
 > **Note**: the arguments for parent file, directory of child files, and acl sections to allow are all required. This is to prevent accidental omission resulting in an unexpected final file.
 
-### Recommendations
-
-- Define a directory structure that aligns to your environment and use cases, e.g.:
-  - `environments/prod`, `environments/staging,` `environments/dev` for different environments
-  - `segments/a`, `segments/a`, `segments/c`, etc for different segments
-  - `departments/frontend`, `departments/backend`, `departments/database`, etc for different departments
-- Use [CODEOWNERS](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners) or the equivalent in your SCM to define individuals or teams that are responsible for the various subdirectories.
-- Define [ACL tests](https://tailscale.com/kb/1337/acl-syntax#tests) in the parent file to ensure segments or environments are not exposed unintentionally.
-- Be mindful of the sections you allow from child files with the `-allow ...` flag. In most cases you likely want to keep `groups`, `autoApprovers`, and other cross-cutting concerns in the parent file only.
-
 ### Example
 
 Using the `testdata` directory in this repo:
@@ -49,6 +39,16 @@ $ tailscale-acl-combiner \
   // ...
 }
 ```
+
+## Recommended usage
+
+- Define a directory structure that aligns to your environment and use cases, e.g.:
+  - `environments/prod`, `environments/staging,` `environments/dev` for different environments
+  - `segments/a`, `segments/a`, `segments/c`, etc for different segments
+  - `departments/frontend`, `departments/backend`, `departments/database`, etc for different departments
+- Use [CODEOWNERS](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners) or the equivalent in your SCM to define individuals or teams that are responsible for the various subdirectories.
+- Define [ACL tests](https://tailscale.com/kb/1337/acl-syntax#tests) in the parent file to ensure segments or environments are not exposed unintentionally.
+- Be mindful of the sections you allow from child files with the `-allow ...` flag. In most cases you likely want to keep `groups`, `autoApprovers`, and other cross-cutting concerns in the parent file only.
 
 ### Usage in a GitOps workflow
 
