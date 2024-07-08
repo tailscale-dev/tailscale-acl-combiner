@@ -15,17 +15,17 @@ import (
 	"github.com/creachadair/jtree/jwcc"
 )
 
-const (
-	typeArray  = "Array"
-	typeObject = "Object"
-)
-
 var (
 	inParentFile       = flag.String("f", "", "parent file to load from")
 	inChildDir         = flag.String("d", "", "directory to process files from")
 	outFile            = flag.String("o", "", "file to write output to")
 	verbose            = flag.Bool("v", false, "enable verbose logging")
 	allowedAclSections aclSections
+)
+
+const (
+	typeArray  = "Array"
+	typeObject = "Object"
 )
 
 type ParsedDocument struct {
@@ -98,8 +98,8 @@ func main() {
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
 	// TODO: worry about casing? mainly -allow arg not matching casing?
 	preDefinedAclSections := map[string]string{
-		// "autoApprovers" - autoApprovers should not be delegated (until we get feedback that they should)
 		"acls":            typeArray,
+		"autoApprovers":   typeObject,
 		"extraDNSRecords": typeArray,
 		"grants":          typeArray,
 		"groups":          typeObject,
