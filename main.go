@@ -124,11 +124,16 @@ func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[s
 	return aclSections
 }
 
-type SectionHandler func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string)
+type SectionHandler func(sectionKey string, parent *jwcc.Object, childSection *jwcc.Member, childPath string)
 
 func arrayHandler() SectionHandler {
-	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string) {
-		newArr := existingOrNewArray(*parentDoc.Object, sectionKey)
+	return func(sectionKey string, parent *jwcc.Object, childSection *jwcc.Member, childPath string) {
+		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
+		if parentProps != nil {
+			pathComment(parentProps.Value.(*jwcc.Array).Values[0], "PARENT")
+		}
+
+		newArr := existingOrNewArray(*parent, sectionKey)
 		childArrValues := childSection.Value.(*jwcc.Array).Values
 
 		pathCommentAlreadyAdded := false
@@ -142,13 +147,18 @@ func arrayHandler() SectionHandler {
 
 		}
 
-		upsertMember(parentDoc, sectionKey, newArr)
+		upsertMember(parent, sectionKey, newArr)
 	}
 }
 
 func objectHandler() SectionHandler {
-	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string) {
-		newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
+	return func(sectionKey string, parent *jwcc.Object, childSection *jwcc.Member, childPath string) {
+		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
+		if parentProps != nil {
+			pathComment(parentProps.Value.(*jwcc.Object).Members[0], "PARENT")
+		}
+
+		newObj := existingOrNewObject(*parent, sectionKey)
 
 		pathCommentAlreadyAdded := false
 		for _, m := range childSection.Value.(*jwcc.Object).Members {
@@ -161,7 +171,7 @@ func objectHandler() SectionHandler {
 			}
 		}
 
-		upsertMember(parentDoc, sectionKey, newObj)
+		upsertMember(parent, sectionKey, newObj)
 	}
 }
 
@@ -175,74 +185,80 @@ func autoApproversHandler() SectionHandler {
 	// 			"10.0.220.0/22": ["tag:demo-subnetrouter2"],
 	// 		},
 	// },
-	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string) {
-		// pathCommentAlreadyAdded := false
-
-		newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
+	return func(sectionKey string, parent *jwcc.Object, childSection *jwcc.Member, childPath string) {
+		newObj := existingOrNewObject(*parent, sectionKey)
 
 		childSectionObj := childSection.Value.(*jwcc.Object)
 
-		parentExitNodeProps := newObj.FindKey(ast.TextEqual(exitNodeKey))
-		if parentExitNodeProps != nil {
-			pathComment(parentExitNodeProps.Value.(*jwcc.Array).Values[0], parentDoc.Path)
-		}
 		childExitNodeProps := childSectionObj.FindKey(ast.TextEqual(exitNodeKey))
-		if childExitNodeProps != nil {
-			childExitNodePropsVal := childExitNodeProps.Value
-			logVerbose("child section [%s] [%v]\n", exitNodeKey, childExitNodePropsVal)
-			newObjProp := existingOrNewArray(*newObj, exitNodeKey)
+		arrayFn := arrayHandler()
+		arrayFn(exitNodeKey, newObj, childExitNodeProps, "CHILD")
 
-			pathComment(childExitNodePropsVal.(*jwcc.Array).Values[0], childPath)
-			newObjProp.Values = append(newObjProp.Values, childExitNodePropsVal.(*jwcc.Array).Values...)
-
-			exitNodeIndexKey := newObj.IndexKey(ast.TextEqual(exitNodeKey))
-			if exitNodeIndexKey == -1 {
-				logVerbose("creating exitNode\n")
-				newObj.Members = append(newObj.Members, &jwcc.Member{Key: childExitNodeProps.Key, Value: newObjProp})
-			}
-		}
-
-		parentRoutesProps := newObj.FindKey(ast.TextEqual(routesKey))
-		if parentRoutesProps != nil {
-			pathComment(parentRoutesProps.Value.(*jwcc.Object).Members[0], parentDoc.Path)
-		}
 		childRoutesProps := childSectionObj.FindKey(ast.TextEqual(routesKey))
-		if childRoutesProps != nil {
-			childRoutesPropsValue := childRoutesProps.Value
-			logVerbose("child section [%s] [%v]\n", routesKey, childRoutesPropsValue)
-			newObjProp := existingOrNewObject(*newObj, routesKey)
+		objectFn := objectHandler()
+		objectFn(routesKey, newObj, childRoutesProps, "CHILD")
 
-			pathCommentAlreadyAdded := false
+		// parentExitNodeProps := newObj.FindKey(ast.TextEqual(exitNodeKey))
+		// if parentExitNodeProps != nil {
+		// 	pathComment(parentExitNodeProps.Value.(*jwcc.Array).Values[0], "TODO")
+		// }
+		// childExitNodeProps := childSectionObj.FindKey(ast.TextEqual(exitNodeKey))
+		// if childExitNodeProps != nil {
+		// 	childExitNodePropsVal := childExitNodeProps.Value
+		// 	logVerbose("child section [%s] [%v]\n", exitNodeKey, childExitNodePropsVal)
+		// 	newObjProp := existingOrNewArray(*newObj, exitNodeKey)
 
-			for _, m := range childRoutesPropsValue.(*jwcc.Object).Members {
-				newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
-				newObjProp.Members = append(newObjProp.Members, newMember)
+		// 	pathComment(childExitNodePropsVal.(*jwcc.Array).Values[0], childPath)
+		// 	newObjProp.Values = append(newObjProp.Values, childExitNodePropsVal.(*jwcc.Array).Values...)
 
-				if !pathCommentAlreadyAdded {
-					pathComment(newMember, childPath)
-					pathCommentAlreadyAdded = true
-				}
-			}
+		// 	exitNodeIndexKey := newObj.IndexKey(ast.TextEqual(exitNodeKey))
+		// 	if exitNodeIndexKey == -1 {
+		// 		logVerbose("creating exitNode\n")
+		// 		newObj.Members = append(newObj.Members, &jwcc.Member{Key: childExitNodeProps.Key, Value: newObjProp})
+		// 	}
+		// }
 
-			routesIndexKey := newObj.IndexKey(ast.TextEqual(routesKey))
-			if routesIndexKey == -1 {
-				logVerbose("creating routes\n")
-				newObj.Members = append(newObj.Members, &jwcc.Member{Key: childRoutesProps.Key, Value: newObjProp})
-			}
-		}
+		// parentRoutesProps := newObj.FindKey(ast.TextEqual(routesKey))
+		// if parentRoutesProps != nil {
+		// 	pathComment(parentRoutesProps.Value.(*jwcc.Object).Members[0], "TODO")
+		// }
+		// childRoutesProps := childSectionObj.FindKey(ast.TextEqual(routesKey))
+		// if childRoutesProps != nil {
+		// 	childRoutesPropsValue := childRoutesProps.Value
+		// 	logVerbose("child section [%s] [%v]\n", routesKey, childRoutesPropsValue)
+		// 	newObjProp := existingOrNewObject(*newObj, routesKey)
+
+		// 	pathCommentAlreadyAdded := false
+
+		// 	for _, m := range childRoutesPropsValue.(*jwcc.Object).Members {
+		// 		newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
+		// 		newObjProp.Members = append(newObjProp.Members, newMember)
+
+		// 		if !pathCommentAlreadyAdded {
+		// 			pathComment(newMember, childPath)
+		// 			pathCommentAlreadyAdded = true
+		// 		}
+		// 	}
+
+		// 	routesIndexKey := newObj.IndexKey(ast.TextEqual(routesKey))
+		// 	if routesIndexKey == -1 {
+		// 		logVerbose("creating routes\n")
+		// 		newObj.Members = append(newObj.Members, &jwcc.Member{Key: childRoutesProps.Key, Value: newObjProp})
+		// 	}
+		// }
 
 		newObj.Sort()
-		upsertMember(parentDoc, sectionKey, newObj)
+		upsertMember(parent, sectionKey, newObj)
 	}
 }
 
-func upsertMember[V *jwcc.Object | *jwcc.Array](doc *ParsedDocument, key string, val V) {
+func upsertMember[V *jwcc.Object | *jwcc.Array](doc *jwcc.Object, key string, val V) {
 	keyAst := ast.String(key)
-	index := doc.Object.IndexKey(ast.TextEqual(key))
+	index := doc.IndexKey(ast.TextEqual(key))
 	if index != -1 {
-		doc.Object.Members[index] = &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)}
+		doc.Members[index] = &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)}
 	} else {
-		doc.Object.Members = append(doc.Object.Members, &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)})
+		doc.Members = append(doc.Members, &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)})
 	}
 }
 
@@ -263,7 +279,7 @@ func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, ch
 				continue
 			}
 
-			handlerFn(sectionKey, parentDoc, childSection, child.Path)
+			handlerFn(sectionKey, parentDoc.Object, childSection, child.Path)
 			child.Object.Members = removeMember(child.Object, sectionKey)
 		}
 
