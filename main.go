@@ -23,11 +23,6 @@ var (
 	allowedAclSections aclSections
 )
 
-const (
-	typeArray  = "Array"
-	typeObject = "Object"
-)
-
 type ParsedDocument struct {
 	Path   string
 	Object *jwcc.Object
@@ -99,6 +94,7 @@ func main() {
 	// TODO: worry about casing? mainly -allow arg not matching casing?
 	preDefinedAclSections := map[string]SectionHandler{
 		"acls":            arrayHandler(),
+		"autoApprovers":   autoApproversHandler(),
 		"extraDNSRecords": arrayHandler(),
 		"grants":          arrayHandler(),
 		"groups":          objectHandler(),
@@ -128,10 +124,10 @@ func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[s
 	return aclSections
 }
 
-type SectionHandler func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, child *ParsedDocument)
+type SectionHandler func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string)
 
 func arrayHandler() SectionHandler {
-	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, child *ParsedDocument) {
+	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string) {
 		sectionHeaderAlreadyPrinted := false
 
 		newArr := existingOrNewArray(*parentDoc.Object, sectionKey)
@@ -139,7 +135,7 @@ func arrayHandler() SectionHandler {
 
 		for i := range childArrValues {
 			if !sectionHeaderAlreadyPrinted {
-				childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", child.Path)}
+				childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", childPath)}
 				sectionHeaderAlreadyPrinted = true
 			}
 			newArr.Values = append(newArr.Values, childArrValues[i])
@@ -155,18 +151,71 @@ func arrayHandler() SectionHandler {
 }
 
 func objectHandler() SectionHandler {
-	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, child *ParsedDocument) {
+	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string) {
 		sectionHeaderAlreadyPrinted := false
 
 		newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
 		for _, m := range childSection.Value.(*jwcc.Object).Members {
 			newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
 			if !sectionHeaderAlreadyPrinted {
-				newMember.Comments().Before = []string{fmt.Sprintf("from %s", child.Path)}
+				newMember.Comments().Before = []string{fmt.Sprintf("from %s", childPath)}
 				sectionHeaderAlreadyPrinted = true
 			}
 			newObj.Members = append(newObj.Members, newMember)
 		}
+
+		index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
+		if index != -1 {
+			parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newObj}
+		} else {
+			parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newObj})
+		}
+	}
+}
+
+func autoApproversHandler() SectionHandler {
+	exitNodeKey := "exitNode"
+	routesKey := "routes"
+	// "autoApprovers": {
+	// 		"exitNode": ["tag:demo-exitnode1", "tag:demo-exitnode2"],
+	// 		"routes": {
+	// 			"10.0.123.0/24": ["tag:demo-subnetrouter1"],
+	// 			"10.0.220.0/22": ["tag:demo-subnetrouter2"],
+	// 		},
+	// },
+	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string) {
+		// sectionHeaderAlreadyPrinted := false
+
+		newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
+
+		childSectionObj := childSection.Value.(*jwcc.Object)
+
+		childExitNodeProps := childSectionObj.FindKey(ast.TextEqual(exitNodeKey))
+		if childExitNodeProps != nil {
+			logVerbose("child section [%s] [%v]\n", exitNodeKey, childExitNodeProps.Value)
+			newObjProp := existingOrNewArray(*newObj, exitNodeKey)
+			newObjProp.Values = append(newObjProp.Values, childExitNodeProps.Value.(*jwcc.Array).Values...)
+
+			exitNodeIndexKey := newObj.IndexKey(ast.TextEqual(exitNodeKey))
+			if exitNodeIndexKey == -1 {
+				logVerbose("creating exitNode")
+				newObj.Members = append(newObj.Members, &jwcc.Member{Key: childExitNodeProps.Key, Value: newObjProp})
+			}
+		}
+
+		childRoutesProps := childSectionObj.FindKey(ast.TextEqual(routesKey))
+		if childRoutesProps != nil {
+			logVerbose("child section [%s] [%v]\n", routesKey, childRoutesProps.Value)
+		}
+
+		// for _, m := range childSection.Value.(*jwcc.Object).Members {
+		// 	newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
+		// 	if !sectionHeaderAlreadyPrinted {
+		// 		newMember.Comments().Before = []string{fmt.Sprintf("from %s", childPath)}
+		// 		sectionHeaderAlreadyPrinted = true
+		// 	}
+		// 	newObj.Members = append(newObj.Members, newMember)
+		// }
 
 		index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
 		if index != -1 {
@@ -190,7 +239,7 @@ func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, ch
 				continue
 			}
 
-			handlerFn(sectionKey, parentDoc, childSection, child)
+			handlerFn(sectionKey, parentDoc, childSection, child.Path)
 			child.Object.Members = removeMember(child.Object, sectionKey)
 		}
 
