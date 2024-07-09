@@ -198,7 +198,7 @@ func autoApproversHandler() SectionHandler {
 
 			exitNodeIndexKey := newObj.IndexKey(ast.TextEqual(exitNodeKey))
 			if exitNodeIndexKey == -1 {
-				logVerbose("creating exitNode")
+				logVerbose("creating exitNode\n")
 				newObj.Members = append(newObj.Members, &jwcc.Member{Key: childExitNodeProps.Key, Value: newObjProp})
 			}
 		}
@@ -206,16 +206,19 @@ func autoApproversHandler() SectionHandler {
 		childRoutesProps := childSectionObj.FindKey(ast.TextEqual(routesKey))
 		if childRoutesProps != nil {
 			logVerbose("child section [%s] [%v]\n", routesKey, childRoutesProps.Value)
-		}
+			newObjProp := existingOrNewObject(*newObj, routesKey)
 
-		// for _, m := range childSection.Value.(*jwcc.Object).Members {
-		// 	newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
-		// 	if !sectionHeaderAlreadyPrinted {
-		// 		newMember.Comments().Before = []string{fmt.Sprintf("from %s", childPath)}
-		// 		sectionHeaderAlreadyPrinted = true
-		// 	}
-		// 	newObj.Members = append(newObj.Members, newMember)
-		// }
+			for _, m := range childRoutesProps.Value.(*jwcc.Object).Members {
+				newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
+				newObjProp.Members = append(newObjProp.Members, newMember)
+			}
+
+			routesIndexKey := newObj.IndexKey(ast.TextEqual(routesKey))
+			if routesIndexKey == -1 {
+				logVerbose("creating routes\n")
+				newObj.Members = append(newObj.Members, &jwcc.Member{Key: childRoutesProps.Key, Value: newObjProp})
+			}
+		}
 
 		index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
 		if index != -1 {
