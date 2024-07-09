@@ -93,16 +93,16 @@ func main() {
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
 	// TODO: worry about casing? mainly -allow arg not matching casing?
 	preDefinedAclSections := map[string]SectionHandler{
-		"acls":            arrayHandler(),
-		"autoApprovers":   autoApproversHandler(),
-		"extraDNSRecords": arrayHandler(),
-		"grants":          arrayHandler(),
-		"groups":          objectHandler(),
-		"nodeAttrs":       arrayHandler(), // TODO: need to merge anything?
-		"postures":        objectHandler(),
-		"ssh":             arrayHandler(),
-		"tagOwners":       objectHandler(),
-		"tests":           arrayHandler(),
+		"acls":            handleArray(),
+		"autoApprovers":   handleAutoApprovers(),
+		"extraDNSRecords": handleArray(),
+		"grants":          handleArray(),
+		"groups":          handleObject(),
+		"nodeAttrs":       handleArray(), // TODO: need to merge anything?
+		"postures":        handleObject(),
+		"ssh":             handleArray(),
+		"tagOwners":       handleObject(),
+		"tests":           handleArray(),
 	}
 
 	aclSections := getAllowedSections(allowedAclSections, preDefinedAclSections)
@@ -126,7 +126,7 @@ func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[s
 
 type SectionHandler func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member)
 
-func arrayHandler() SectionHandler {
+func handleArray() SectionHandler {
 	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
 		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
 		if parentProps != nil {
@@ -151,7 +151,7 @@ func arrayHandler() SectionHandler {
 	}
 }
 
-func objectHandler() SectionHandler {
+func handleObject() SectionHandler {
 	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
 		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
 		if parentProps != nil {
@@ -175,7 +175,7 @@ func objectHandler() SectionHandler {
 	}
 }
 
-func autoApproversHandler() SectionHandler {
+func handleAutoApprovers() SectionHandler {
 	// "autoApprovers": {
 	// 		"exitNode": ["tag:demo-exitnode1", "tag:demo-exitnode2"],
 	// 		"routes": {
@@ -189,11 +189,11 @@ func autoApproversHandler() SectionHandler {
 		childSectionObj := childSection.Value.(*jwcc.Object)
 
 		childExitNodeProps := childSectionObj.FindKey(ast.TextEqual("exitNode"))
-		arrayFn := arrayHandler()
+		arrayFn := handleArray()
 		arrayFn("exitNode", parentPath, newObj, childPath, childExitNodeProps)
 
 		childRoutesProps := childSectionObj.FindKey(ast.TextEqual("routes"))
-		objectFn := objectHandler()
+		objectFn := handleObject()
 		objectFn("routes", parentPath, newObj, childPath, childRoutesProps)
 
 		newObj.Sort()

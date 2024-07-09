@@ -32,7 +32,7 @@ func TestMergeDocsEmptyParent(t *testing.T) {
 	}
 
 	sections := map[string]SectionHandler{
-		"goodpath": objectHandler(),
+		"goodpath": handleObject(),
 	}
 
 	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})
@@ -73,7 +73,7 @@ func TestMergeDocsParentWithDifferentMembers(t *testing.T) {
 	}
 
 	sections := map[string]SectionHandler{
-		"goodpath": objectHandler(),
+		"goodpath": handleObject(),
 	}
 
 	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})
@@ -110,7 +110,7 @@ func TestMergeDocsParentWithSameMember(t *testing.T) {
 	}
 
 	sections := map[string]SectionHandler{
-		"goodpath": objectHandler(),
+		"goodpath": handleObject(),
 	}
 
 	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})
@@ -201,7 +201,7 @@ func TestRemoveMember(t *testing.T) {
 }
 
 func TestGetAllowedSections(t *testing.T) {
-	actualValue := objectHandler()
+	actualValue := handleObject()
 	defined := map[string]SectionHandler{
 		"1": actualValue,
 		"2": actualValue,
