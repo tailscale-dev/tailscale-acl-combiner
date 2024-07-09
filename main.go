@@ -198,55 +198,6 @@ func autoApproversHandler() SectionHandler {
 		objectFn := objectHandler()
 		objectFn(routesKey, newObj, childRoutesProps, "CHILD")
 
-		// parentExitNodeProps := newObj.FindKey(ast.TextEqual(exitNodeKey))
-		// if parentExitNodeProps != nil {
-		// 	pathComment(parentExitNodeProps.Value.(*jwcc.Array).Values[0], "TODO")
-		// }
-		// childExitNodeProps := childSectionObj.FindKey(ast.TextEqual(exitNodeKey))
-		// if childExitNodeProps != nil {
-		// 	childExitNodePropsVal := childExitNodeProps.Value
-		// 	logVerbose("child section [%s] [%v]\n", exitNodeKey, childExitNodePropsVal)
-		// 	newObjProp := existingOrNewArray(*newObj, exitNodeKey)
-
-		// 	pathComment(childExitNodePropsVal.(*jwcc.Array).Values[0], childPath)
-		// 	newObjProp.Values = append(newObjProp.Values, childExitNodePropsVal.(*jwcc.Array).Values...)
-
-		// 	exitNodeIndexKey := newObj.IndexKey(ast.TextEqual(exitNodeKey))
-		// 	if exitNodeIndexKey == -1 {
-		// 		logVerbose("creating exitNode\n")
-		// 		newObj.Members = append(newObj.Members, &jwcc.Member{Key: childExitNodeProps.Key, Value: newObjProp})
-		// 	}
-		// }
-
-		// parentRoutesProps := newObj.FindKey(ast.TextEqual(routesKey))
-		// if parentRoutesProps != nil {
-		// 	pathComment(parentRoutesProps.Value.(*jwcc.Object).Members[0], "TODO")
-		// }
-		// childRoutesProps := childSectionObj.FindKey(ast.TextEqual(routesKey))
-		// if childRoutesProps != nil {
-		// 	childRoutesPropsValue := childRoutesProps.Value
-		// 	logVerbose("child section [%s] [%v]\n", routesKey, childRoutesPropsValue)
-		// 	newObjProp := existingOrNewObject(*newObj, routesKey)
-
-		// 	pathCommentAlreadyAdded := false
-
-		// 	for _, m := range childRoutesPropsValue.(*jwcc.Object).Members {
-		// 		newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
-		// 		newObjProp.Members = append(newObjProp.Members, newMember)
-
-		// 		if !pathCommentAlreadyAdded {
-		// 			pathComment(newMember, childPath)
-		// 			pathCommentAlreadyAdded = true
-		// 		}
-		// 	}
-
-		// 	routesIndexKey := newObj.IndexKey(ast.TextEqual(routesKey))
-		// 	if routesIndexKey == -1 {
-		// 		logVerbose("creating routes\n")
-		// 		newObj.Members = append(newObj.Members, &jwcc.Member{Key: childRoutesProps.Key, Value: newObjProp})
-		// 	}
-		// }
-
 		newObj.Sort()
 		upsertMember(parent, sectionKey, newObj)
 	}
