@@ -141,12 +141,7 @@ func arrayHandler() SectionHandler {
 			newArr.Values = append(newArr.Values, childArrValues[i])
 		}
 
-		index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
-		if index != -1 {
-			parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newArr}
-		} else {
-			parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newArr})
-		}
+		upsertMember(parentDoc, sectionKey, newArr)
 	}
 }
 
@@ -164,12 +159,7 @@ func objectHandler() SectionHandler {
 			newObj.Members = append(newObj.Members, newMember)
 		}
 
-		index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
-		if index != -1 {
-			parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newObj}
-		} else {
-			parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newObj})
-		}
+		upsertMember(parentDoc, sectionKey, newObj)
 	}
 }
 
@@ -220,12 +210,17 @@ func autoApproversHandler() SectionHandler {
 			}
 		}
 
-		index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
-		if index != -1 {
-			parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newObj}
-		} else {
-			parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newObj})
-		}
+		upsertMember(parentDoc, sectionKey, newObj)
+	}
+}
+
+func upsertMember[V *jwcc.Object | *jwcc.Array](doc *ParsedDocument, key string, val V) {
+	keyAst := ast.String(key)
+	index := doc.Object.IndexKey(ast.TextEqual(key))
+	if index != -1 {
+		doc.Object.Members[index] = &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)}
+	} else {
+		doc.Object.Members = append(doc.Object.Members, &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)})
 	}
 }
 
