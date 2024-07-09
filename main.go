@@ -97,20 +97,16 @@ func main() {
 	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
 	// TODO: worry about casing? mainly -allow arg not matching casing?
-	// preDefinedAclSectionHandlers := map[string]SectionHandler{
-	// 	"acls": arrayHandler(),
-	// }
-	preDefinedAclSections := map[string]string{
-		"acls": typeArray,
-		// "autoApprovers":   typeObject,
-		"extraDNSRecords": typeArray,
-		"grants":          typeArray,
-		"groups":          typeObject,
-		"nodeAttrs":       typeArray, // TODO: need to merge anything?
-		"postures":        typeObject,
-		"ssh":             typeArray,
-		"tagOwners":       typeObject,
-		"tests":           typeArray,
+	preDefinedAclSections := map[string]SectionHandler{
+		"acls":            arrayHandler(),
+		"extraDNSRecords": arrayHandler(),
+		"grants":          arrayHandler(),
+		"groups":          objectHandler(),
+		"nodeAttrs":       arrayHandler(), // TODO: need to merge anything?
+		"postures":        objectHandler(),
+		"ssh":             arrayHandler(),
+		"tagOwners":       objectHandler(),
+		"tests":           arrayHandler(),
 	}
 
 	aclSections := getAllowedSections(allowedAclSections, preDefinedAclSections)
@@ -123,9 +119,8 @@ func main() {
 	outputFile(parentDoc.Object)
 }
 
-func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[string]string) map[string]string {
-	aclSections := map[string]string{}
-	// TODO: handle `newsection:Array` as input?
+func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[string]SectionHandler) map[string]SectionHandler {
+	aclSections := map[string]SectionHandler{}
 	for _, v := range allowedAclSections {
 		aclSections[v] = preDefinedAclSections[v]
 	}
@@ -182,29 +177,20 @@ func objectHandler() SectionHandler {
 	}
 }
 
-func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
+func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
 	for _, child := range childDocs {
 		if child.Path == parentDoc.Path {
 			logVerbose("skipping [%s], same doc as parent\n", child.Path)
 			continue
 		}
 
-		for sectionKey, sectionObject := range sections {
+		for sectionKey, handlerFn := range sections {
 			childSection := child.Object.Find(sectionKey)
 			if childSection == nil {
 				continue
 			}
 
-			if sectionObject == typeArray {
-				f := arrayHandler()
-				f(sectionKey, parentDoc, childSection, child)
-			} else if sectionObject == typeObject {
-				f := objectHandler()
-				f(sectionKey, parentDoc, childSection, child)
-			} else {
-				return fmt.Errorf("unexpected type [%v] for [\"%s\"] from file [%s]", sectionObject, sectionKey, parentDoc.Path)
-			}
-
+			handlerFn(sectionKey, parentDoc, childSection, child)
 			child.Object.Members = removeMember(child.Object, sectionKey)
 		}
 

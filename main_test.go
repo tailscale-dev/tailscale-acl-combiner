@@ -31,8 +31,8 @@ func TestMergeDocsEmptyParent(t *testing.T) {
 		Path:   "child",
 	}
 
-	sections := map[string]string{
-		"goodpath": "Object",
+	sections := map[string]SectionHandler{
+		"goodpath": objectHandler(),
 	}
 
 	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})
@@ -72,8 +72,8 @@ func TestMergeDocsParentWithDifferentMembers(t *testing.T) {
 		Path:   "child",
 	}
 
-	sections := map[string]string{
-		"goodpath": "Object",
+	sections := map[string]SectionHandler{
+		"goodpath": objectHandler(),
 	}
 
 	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})
@@ -109,8 +109,8 @@ func TestMergeDocsParentWithSameMember(t *testing.T) {
 		Path:   "child",
 	}
 
-	sections := map[string]string{
-		"goodpath": "Object",
+	sections := map[string]SectionHandler{
+		"goodpath": objectHandler(),
 	}
 
 	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})
@@ -201,32 +201,32 @@ func TestRemoveMember(t *testing.T) {
 }
 
 func TestGetAllowedSections(t *testing.T) {
-	actualValue := "foo"
-	allowed := []string{"1", "2"}
-	defined := map[string]string{
+	actualValue := objectHandler()
+	defined := map[string]SectionHandler{
 		"1": actualValue,
 		"2": actualValue,
 		"3": actualValue,
 	}
+	allowed := []string{"1", "2"}
 	allowedAclSections := getAllowedSections(allowed, defined)
 
 	// should exist
 	section1 := allowedAclSections["1"]
-	if section1 != actualValue {
-		t.Fatalf("section [%v] should be [%v], got %v", "1", actualValue, section1)
+	if section1 == nil {
+		t.Fatalf("section [%v] should NOT be nil", "1")
 	}
 	section2 := allowedAclSections["2"]
-	if section2 != actualValue {
-		t.Fatalf("section [%v] should be [%v], got %v", "1", actualValue, section2)
+	if section2 == nil {
+		t.Fatalf("section [%v] should NOT be nil", "2")
 	}
 
 	// should not exist
 	section3 := allowedAclSections["3"]
-	if section3 != "" {
-		t.Fatalf("section [%v] should be [%v], got %v", "1", actualValue, section3)
+	if section3 != nil {
+		t.Fatalf("section [%v] SHOULD be nil", "3")
 	}
 	sectionZ := allowedAclSections["Z"]
-	if sectionZ != "" {
-		t.Fatalf("section [%v] should be [%v], got %v", "1", actualValue, sectionZ)
+	if sectionZ != nil {
+		t.Fatalf("section [%v] SHOULD be nil", "Z")
 	}
 }
