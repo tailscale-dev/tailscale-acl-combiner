@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -228,5 +230,40 @@ func TestGetAllowedSections(t *testing.T) {
 	sectionZ := allowedAclSections["Z"]
 	if sectionZ != nil {
 		t.Fatalf("section [%v] SHOULD be nil", "Z")
+	}
+}
+
+func TestArrayHandler(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		// empty parent
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
+	}
+
+	child, err := jwcc.Parse(strings.NewReader(`{
+		"acls": [
+			{"action": "accept", "src": ["finance1"], "dst": ["tag:demo-infra:22"]},
+		]
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	childSection := child.Value.(*jwcc.Object).Find("acls")
+
+	handlerFn := handleArray()
+	handlerFn("acls", parentDoc.Path, parentDoc.Object, "CHILD", childSection)
+
+	aclMembers := parentDoc.Object.Find("acls").Value.(*jwcc.Array).Values
+
+	os.Stderr.WriteString(fmt.Sprintf("aclMembers: %v", aclMembers))
+
+	if len(aclMembers) != 1 {
+		t.Fatalf("section [%v] should be 1, not [%v]", "acls", len(aclMembers))
 	}
 }
