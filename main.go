@@ -124,13 +124,13 @@ func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[s
 	return aclSections
 }
 
-type SectionHandler func(sectionKey string, parent *jwcc.Object, childSection *jwcc.Member, childPath string)
+type SectionHandler func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member)
 
 func arrayHandler() SectionHandler {
-	return func(sectionKey string, parent *jwcc.Object, childSection *jwcc.Member, childPath string) {
+	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
 		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
 		if parentProps != nil {
-			pathComment(parentProps.Value.(*jwcc.Array).Values[0], "PARENT")
+			pathComment(parentProps.Value.(*jwcc.Array).Values[0], parentPath)
 		}
 
 		newArr := existingOrNewArray(*parent, sectionKey)
@@ -152,10 +152,10 @@ func arrayHandler() SectionHandler {
 }
 
 func objectHandler() SectionHandler {
-	return func(sectionKey string, parent *jwcc.Object, childSection *jwcc.Member, childPath string) {
+	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
 		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
 		if parentProps != nil {
-			pathComment(parentProps.Value.(*jwcc.Object).Members[0], "PARENT")
+			pathComment(parentProps.Value.(*jwcc.Object).Members[0], parentPath)
 		}
 
 		newObj := existingOrNewObject(*parent, sectionKey)
@@ -176,8 +176,6 @@ func objectHandler() SectionHandler {
 }
 
 func autoApproversHandler() SectionHandler {
-	exitNodeKey := "exitNode"
-	routesKey := "routes"
 	// "autoApprovers": {
 	// 		"exitNode": ["tag:demo-exitnode1", "tag:demo-exitnode2"],
 	// 		"routes": {
@@ -185,18 +183,18 @@ func autoApproversHandler() SectionHandler {
 	// 			"10.0.220.0/22": ["tag:demo-subnetrouter2"],
 	// 		},
 	// },
-	return func(sectionKey string, parent *jwcc.Object, childSection *jwcc.Member, childPath string) {
+	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
 		newObj := existingOrNewObject(*parent, sectionKey)
 
 		childSectionObj := childSection.Value.(*jwcc.Object)
 
-		childExitNodeProps := childSectionObj.FindKey(ast.TextEqual(exitNodeKey))
+		childExitNodeProps := childSectionObj.FindKey(ast.TextEqual("exitNode"))
 		arrayFn := arrayHandler()
-		arrayFn(exitNodeKey, newObj, childExitNodeProps, "CHILD")
+		arrayFn("exitNode", parentPath, newObj, childPath, childExitNodeProps)
 
-		childRoutesProps := childSectionObj.FindKey(ast.TextEqual(routesKey))
+		childRoutesProps := childSectionObj.FindKey(ast.TextEqual("routes"))
 		objectFn := objectHandler()
-		objectFn(routesKey, newObj, childRoutesProps, "CHILD")
+		objectFn("routes", parentPath, newObj, childPath, childRoutesProps)
 
 		newObj.Sort()
 		upsertMember(parent, sectionKey, newObj)
@@ -218,6 +216,11 @@ func pathComment(val jwcc.Value, path string) {
 }
 
 func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
+	// for _, parentSection := range parentDoc.Object.Members {
+	// 	// TODO: add comment for each parent section
+	// 	// logVerbose("processing parent section [%s]...\n", parentSection.Key)
+	// 	// pathComment(parentSection, parentDoc.Path)
+	// }
 	for _, child := range childDocs {
 		if child.Path == parentDoc.Path {
 			logVerbose("skipping [%s], same doc as parent\n", child.Path)
@@ -230,7 +233,7 @@ func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, ch
 				continue
 			}
 
-			handlerFn(sectionKey, parentDoc.Object, childSection, child.Path)
+			handlerFn(sectionKey, parentDoc.Path, parentDoc.Object, child.Path, childSection)
 			child.Object.Members = removeMember(child.Object, sectionKey)
 		}
 
