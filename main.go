@@ -128,17 +128,18 @@ type SectionHandler func(sectionKey string, parentDoc *ParsedDocument, childSect
 
 func arrayHandler() SectionHandler {
 	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string) {
-		sectionHeaderAlreadyPrinted := false
-
 		newArr := existingOrNewArray(*parentDoc.Object, sectionKey)
 		childArrValues := childSection.Value.(*jwcc.Array).Values
 
+		pathCommentAlreadyAdded := false
 		for i := range childArrValues {
-			if !sectionHeaderAlreadyPrinted {
-				childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", childPath)}
-				sectionHeaderAlreadyPrinted = true
-			}
 			newArr.Values = append(newArr.Values, childArrValues[i])
+
+			if !pathCommentAlreadyAdded {
+				pathComment(childArrValues[i], childPath)
+				pathCommentAlreadyAdded = true
+			}
+
 		}
 
 		upsertMember(parentDoc, sectionKey, newArr)
@@ -147,16 +148,17 @@ func arrayHandler() SectionHandler {
 
 func objectHandler() SectionHandler {
 	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string) {
-		sectionHeaderAlreadyPrinted := false
-
 		newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
+
+		pathCommentAlreadyAdded := false
 		for _, m := range childSection.Value.(*jwcc.Object).Members {
 			newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
-			if !sectionHeaderAlreadyPrinted {
-				newMember.Comments().Before = []string{fmt.Sprintf("from %s", childPath)}
-				sectionHeaderAlreadyPrinted = true
-			}
 			newObj.Members = append(newObj.Members, newMember)
+
+			if !pathCommentAlreadyAdded {
+				pathComment(newMember, childPath)
+				pathCommentAlreadyAdded = true
+			}
 		}
 
 		upsertMember(parentDoc, sectionKey, newObj)
@@ -174,17 +176,24 @@ func autoApproversHandler() SectionHandler {
 	// 		},
 	// },
 	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, childPath string) {
-		// sectionHeaderAlreadyPrinted := false
+		// pathCommentAlreadyAdded := false
 
 		newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
 
 		childSectionObj := childSection.Value.(*jwcc.Object)
 
+		parentExitNodeProps := newObj.FindKey(ast.TextEqual(exitNodeKey))
+		if parentExitNodeProps != nil {
+			pathComment(parentExitNodeProps.Value.(*jwcc.Array).Values[0], parentDoc.Path)
+		}
 		childExitNodeProps := childSectionObj.FindKey(ast.TextEqual(exitNodeKey))
 		if childExitNodeProps != nil {
-			logVerbose("child section [%s] [%v]\n", exitNodeKey, childExitNodeProps.Value)
+			childExitNodePropsVal := childExitNodeProps.Value
+			logVerbose("child section [%s] [%v]\n", exitNodeKey, childExitNodePropsVal)
 			newObjProp := existingOrNewArray(*newObj, exitNodeKey)
-			newObjProp.Values = append(newObjProp.Values, childExitNodeProps.Value.(*jwcc.Array).Values...)
+
+			pathComment(childExitNodePropsVal.(*jwcc.Array).Values[0], childPath)
+			newObjProp.Values = append(newObjProp.Values, childExitNodePropsVal.(*jwcc.Array).Values...)
 
 			exitNodeIndexKey := newObj.IndexKey(ast.TextEqual(exitNodeKey))
 			if exitNodeIndexKey == -1 {
@@ -193,14 +202,26 @@ func autoApproversHandler() SectionHandler {
 			}
 		}
 
+		parentRoutesProps := newObj.FindKey(ast.TextEqual(routesKey))
+		if parentRoutesProps != nil {
+			pathComment(parentRoutesProps.Value.(*jwcc.Object).Members[0], parentDoc.Path)
+		}
 		childRoutesProps := childSectionObj.FindKey(ast.TextEqual(routesKey))
 		if childRoutesProps != nil {
-			logVerbose("child section [%s] [%v]\n", routesKey, childRoutesProps.Value)
+			childRoutesPropsValue := childRoutesProps.Value
+			logVerbose("child section [%s] [%v]\n", routesKey, childRoutesPropsValue)
 			newObjProp := existingOrNewObject(*newObj, routesKey)
 
-			for _, m := range childRoutesProps.Value.(*jwcc.Object).Members {
+			pathCommentAlreadyAdded := false
+
+			for _, m := range childRoutesPropsValue.(*jwcc.Object).Members {
 				newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
 				newObjProp.Members = append(newObjProp.Members, newMember)
+
+				if !pathCommentAlreadyAdded {
+					pathComment(newMember, childPath)
+					pathCommentAlreadyAdded = true
+				}
 			}
 
 			routesIndexKey := newObj.IndexKey(ast.TextEqual(routesKey))
@@ -210,6 +231,7 @@ func autoApproversHandler() SectionHandler {
 			}
 		}
 
+		newObj.Sort()
 		upsertMember(parentDoc, sectionKey, newObj)
 	}
 }
@@ -222,6 +244,10 @@ func upsertMember[V *jwcc.Object | *jwcc.Array](doc *ParsedDocument, key string,
 	} else {
 		doc.Object.Members = append(doc.Object.Members, &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)})
 	}
+}
+
+func pathComment(val jwcc.Value, path string) {
+	val.Comments().Before = []string{fmt.Sprintf("from `%s`", path)}
 }
 
 func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
