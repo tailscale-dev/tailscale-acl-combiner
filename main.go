@@ -97,9 +97,12 @@ func main() {
 	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
 	// TODO: worry about casing? mainly -allow arg not matching casing?
+	// preDefinedAclSectionHandlers := map[string]SectionHandler{
+	// 	"acls": arrayHandler(),
+	// }
 	preDefinedAclSections := map[string]string{
-		"acls":            typeArray,
-		"autoApprovers":   typeObject,
+		"acls": typeArray,
+		// "autoApprovers":   typeObject,
 		"extraDNSRecords": typeArray,
 		"grants":          typeArray,
 		"groups":          typeObject,
@@ -130,6 +133,55 @@ func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[s
 	return aclSections
 }
 
+type SectionHandler func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, child *ParsedDocument)
+
+func arrayHandler() SectionHandler {
+	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, child *ParsedDocument) {
+		sectionHeaderAlreadyPrinted := false
+
+		newArr := existingOrNewArray(*parentDoc.Object, sectionKey)
+		childArrValues := childSection.Value.(*jwcc.Array).Values
+
+		for i := range childArrValues {
+			if !sectionHeaderAlreadyPrinted {
+				childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", child.Path)}
+				sectionHeaderAlreadyPrinted = true
+			}
+			newArr.Values = append(newArr.Values, childArrValues[i])
+		}
+
+		index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
+		if index != -1 {
+			parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newArr}
+		} else {
+			parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newArr})
+		}
+	}
+}
+
+func objectHandler() SectionHandler {
+	return func(sectionKey string, parentDoc *ParsedDocument, childSection *jwcc.Member, child *ParsedDocument) {
+		sectionHeaderAlreadyPrinted := false
+
+		newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
+		for _, m := range childSection.Value.(*jwcc.Object).Members {
+			newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
+			if !sectionHeaderAlreadyPrinted {
+				newMember.Comments().Before = []string{fmt.Sprintf("from %s", child.Path)}
+				sectionHeaderAlreadyPrinted = true
+			}
+			newObj.Members = append(newObj.Members, newMember)
+		}
+
+		index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
+		if index != -1 {
+			parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newObj}
+		} else {
+			parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newObj})
+		}
+	}
+}
+
 func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
 	for _, child := range childDocs {
 		if child.Path == parentDoc.Path {
@@ -143,42 +195,12 @@ func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs 
 				continue
 			}
 
-			sectionHeaderAlreadyPrinted := false
 			if sectionObject == typeArray {
-				newArr := existingOrNewArray(*parentDoc.Object, sectionKey)
-				childArrValues := childSection.Value.(*jwcc.Array).Values
-
-				for i := range childArrValues {
-					if !sectionHeaderAlreadyPrinted {
-						childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", child.Path)}
-						sectionHeaderAlreadyPrinted = true
-					}
-					newArr.Values = append(newArr.Values, childArrValues[i])
-				}
-
-				index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
-				if index != -1 {
-					parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newArr}
-				} else {
-					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newArr})
-				}
+				f := arrayHandler()
+				f(sectionKey, parentDoc, childSection, child)
 			} else if sectionObject == typeObject {
-				newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
-				for _, m := range childSection.Value.(*jwcc.Object).Members {
-					newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
-					if !sectionHeaderAlreadyPrinted {
-						newMember.Comments().Before = []string{fmt.Sprintf("from %s", child.Path)}
-						sectionHeaderAlreadyPrinted = true
-					}
-					newObj.Members = append(newObj.Members, newMember)
-				}
-
-				index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
-				if index != -1 {
-					parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newObj}
-				} else {
-					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newObj})
-				}
+				f := objectHandler()
+				f(sectionKey, parentDoc, childSection, child)
 			} else {
 				return fmt.Errorf("unexpected type [%v] for [\"%s\"] from file [%s]", sectionObject, sectionKey, parentDoc.Path)
 			}
