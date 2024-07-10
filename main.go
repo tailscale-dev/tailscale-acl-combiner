@@ -216,11 +216,11 @@ func pathComment(val jwcc.Value, path string) {
 }
 
 func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
-	// for _, parentSection := range parentDoc.Object.Members {
-	// 	// TODO: add comment for each parent section
-	// 	// logVerbose("processing parent section [%s]...\n", parentSection.Key)
-	// 	// pathComment(parentSection, parentDoc.Path)
-	// }
+	for _, parentSection := range parentDoc.Object.Members {
+		// TODO: add comment for each parent section
+		logVerbose("processing parent section [%s]...\n", parentSection.Key)
+		pathComment(parentSection, parentDoc.Path)
+	}
 	for _, child := range childDocs {
 		if child.Path == parentDoc.Path {
 			logVerbose("skipping [%s], same doc as parent\n", child.Path)
