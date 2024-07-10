@@ -89,7 +89,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// TODO: missing any sections?
 	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
 	// TODO: worry about casing? mainly -allow arg not matching casing?
 	preDefinedAclSections := map[string]SectionHandler{
@@ -176,13 +175,7 @@ func handleObject() SectionHandler {
 }
 
 func handleAutoApprovers() SectionHandler {
-	// "autoApprovers": {
-	// 		"exitNode": ["tag:demo-exitnode1", "tag:demo-exitnode2"],
-	// 		"routes": {
-	// 			"10.0.123.0/24": ["tag:demo-subnetrouter1"],
-	// 			"10.0.220.0/22": ["tag:demo-subnetrouter2"],
-	// 		},
-	// },
+	// https://tailscale.com/kb/1337/acl-syntax#auto-approvers-autoapprovers
 	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
 		newObj := existingOrNewObject(*parent, sectionKey)
 
@@ -217,8 +210,6 @@ func pathComment(val jwcc.Value, path string) {
 
 func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
 	for _, parentSection := range parentDoc.Object.Members {
-		// TODO: add comment for each parent section
-		logVerbose("processing parent section [%s]...\n", parentSection.Key)
 		pathComment(parentSection, parentDoc.Path)
 	}
 	for _, child := range childDocs {
@@ -238,7 +229,6 @@ func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, ch
 		}
 
 		for _, remainingSection := range child.Object.Members {
-			// TODO: arg to log and not error on unsupported sections?
 			return fmt.Errorf("unsupported section [\"%s\"] in file [%s]", remainingSection.Key, child.Path)
 		}
 	}
@@ -321,7 +311,7 @@ func parse(path string) (*ParsedDocument, error) {
 
 	root, ok := doc.Value.(*jwcc.Object)
 	if !ok {
-		return nil, fmt.Errorf("invalid file format: document root is %T, expected object", doc.Value)
+		return nil, fmt.Errorf("invalid file format: document root is [%T], expected [object]", doc.Value)
 	}
 
 	return &ParsedDocument{Path: path, Object: root}, nil
