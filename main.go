@@ -21,6 +21,21 @@ var (
 	outFile            = flag.String("o", "", "file to write output to")
 	verbose            = flag.Bool("v", false, "enable verbose logging")
 	allowedAclSections aclSections
+
+	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
+	// TODO: worry about casing? mainly -allow arg not matching casing?
+	preDefinedAclSections = map[string]SectionHandler{
+		"acls":            handleArray(),
+		"autoApprovers":   handleAutoApprovers(),
+		"extraDNSRecords": handleArray(),
+		"grants":          handleArray(),
+		"groups":          handleObject(),
+		"nodeAttrs":       handleArray(), // TODO: need to merge anything?
+		"postures":        handleObject(),
+		"ssh":             handleArray(),
+		"tagOwners":       handleObject(),
+		"tests":           handleArray(),
+	}
 )
 
 type ParsedDocument struct {
@@ -89,28 +104,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
-	// TODO: worry about casing? mainly -allow arg not matching casing?
-	preDefinedAclSections := map[string]SectionHandler{
-		"acls":            handleArray(),
-		"autoApprovers":   handleAutoApprovers(),
-		"extraDNSRecords": handleArray(),
-		"grants":          handleArray(),
-		"groups":          handleObject(),
-		"nodeAttrs":       handleArray(), // TODO: need to merge anything?
-		"postures":        handleObject(),
-		"ssh":             handleArray(),
-		"tagOwners":       handleObject(),
-		"tests":           handleArray(),
-	}
-
 	aclSections := getAllowedSections(allowedAclSections, preDefinedAclSections)
 	err = mergeDocs(aclSections, parentDoc, childDocs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	parentDoc.Object.Sort()
 	outputFile(parentDoc.Object)
 }
 
@@ -232,6 +231,9 @@ func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, ch
 			return fmt.Errorf("unsupported section [\"%s\"] in file [%s]", remainingSection.Key, child.Path)
 		}
 	}
+
+	parentDoc.Object.Sort()
+
 	return nil
 }
 
