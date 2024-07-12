@@ -15,17 +15,27 @@ import (
 	"github.com/creachadair/jtree/jwcc"
 )
 
-const (
-	typeArray  = "Array"
-	typeObject = "Object"
-)
-
 var (
 	inParentFile       = flag.String("f", "", "parent file to load from")
 	inChildDir         = flag.String("d", "", "directory to process files from")
 	outFile            = flag.String("o", "", "file to write output to")
 	verbose            = flag.Bool("v", false, "enable verbose logging")
 	allowedAclSections aclSections
+
+	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
+	// TODO: worry about casing? mainly -allow arg not matching casing?
+	preDefinedAclSections = map[string]SectionHandler{
+		"acls":            handleArray(),
+		"autoApprovers":   handleAutoApprovers(),
+		"extraDNSRecords": handleArray(),
+		"grants":          handleArray(),
+		"groups":          handleObject(),
+		"nodeAttrs":       handleArray(), // TODO: need to merge anything?
+		"postures":        handleObject(),
+		"ssh":             handleArray(),
+		"tagOwners":       handleObject(),
+		"tests":           handleArray(),
+	}
 )
 
 type ParsedDocument struct {
@@ -94,35 +104,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// TODO: missing any sections?
-	// TODO: anything special to do with top-level properties - https://tailscale.com/kb/1337/acl-syntax#network-policy-options ?
-	// TODO: worry about casing? mainly -allow arg not matching casing?
-	preDefinedAclSections := map[string]string{
-		// "autoApprovers" - autoApprovers should not be delegated (until we get feedback that they should)
-		"acls":            typeArray,
-		"extraDNSRecords": typeArray,
-		"grants":          typeArray,
-		"groups":          typeObject,
-		"nodeAttrs":       typeArray, // TODO: need to merge anything?
-		"postures":        typeObject,
-		"ssh":             typeArray,
-		"tagOwners":       typeObject,
-		"tests":           typeArray,
-	}
-
 	aclSections := getAllowedSections(allowedAclSections, preDefinedAclSections)
 	err = mergeDocs(aclSections, parentDoc, childDocs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	parentDoc.Object.Sort()
 	outputFile(parentDoc.Object)
 }
 
-func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[string]string) map[string]string {
-	aclSections := map[string]string{}
-	// TODO: handle `newsection:Array` as input?
+func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[string]SectionHandler) map[string]SectionHandler {
+	aclSections := map[string]SectionHandler{}
 	for _, v := range allowedAclSections {
 		aclSections[v] = preDefinedAclSections[v]
 	}
@@ -130,67 +122,118 @@ func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[s
 	return aclSections
 }
 
-func mergeDocs(sections map[string]string, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
+type SectionHandler func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member)
+
+func handleArray() SectionHandler {
+	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
+		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
+		if parentProps != nil {
+			pathComment(parentProps.Value.(*jwcc.Array).Values[0], parentPath)
+		}
+
+		newArr := existingOrNewArray(*parent, sectionKey)
+		childArrValues := childSection.Value.(*jwcc.Array).Values
+
+		pathCommentAlreadyAdded := false
+		for i := range childArrValues {
+			newArr.Values = append(newArr.Values, childArrValues[i])
+
+			if !pathCommentAlreadyAdded {
+				pathComment(childArrValues[i], childPath)
+				pathCommentAlreadyAdded = true
+			}
+
+		}
+
+		upsertMember(parent, sectionKey, newArr)
+	}
+}
+
+func handleObject() SectionHandler {
+	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
+		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
+		if parentProps != nil {
+			pathComment(parentProps.Value.(*jwcc.Object).Members[0], parentPath)
+		}
+
+		newObj := existingOrNewObject(*parent, sectionKey)
+
+		pathCommentAlreadyAdded := false
+		for _, m := range childSection.Value.(*jwcc.Object).Members {
+			newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
+			newObj.Members = append(newObj.Members, newMember)
+
+			if !pathCommentAlreadyAdded {
+				pathComment(newMember, childPath)
+				pathCommentAlreadyAdded = true
+			}
+		}
+
+		upsertMember(parent, sectionKey, newObj)
+	}
+}
+
+func handleAutoApprovers() SectionHandler {
+	// https://tailscale.com/kb/1337/acl-syntax#auto-approvers-autoapprovers
+	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
+		newObj := existingOrNewObject(*parent, sectionKey)
+
+		childSectionObj := childSection.Value.(*jwcc.Object)
+
+		childExitNodeProps := childSectionObj.FindKey(ast.TextEqual("exitNode"))
+		arrayFn := handleArray()
+		arrayFn("exitNode", parentPath, newObj, childPath, childExitNodeProps)
+
+		childRoutesProps := childSectionObj.FindKey(ast.TextEqual("routes"))
+		objectFn := handleObject()
+		objectFn("routes", parentPath, newObj, childPath, childRoutesProps)
+
+		newObj.Sort()
+		upsertMember(parent, sectionKey, newObj)
+	}
+}
+
+func upsertMember[V *jwcc.Object | *jwcc.Array](doc *jwcc.Object, key string, val V) {
+	keyAst := ast.String(key)
+	index := doc.IndexKey(ast.TextEqual(key))
+	if index != -1 {
+		doc.Members[index] = &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)}
+	} else {
+		doc.Members = append(doc.Members, &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)})
+	}
+}
+
+func pathComment(val jwcc.Value, path string) {
+	val.Comments().Before = []string{fmt.Sprintf("from `%s`", path)}
+}
+
+func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
+	for _, parentSection := range parentDoc.Object.Members {
+		pathComment(parentSection, parentDoc.Path)
+	}
 	for _, child := range childDocs {
 		if child.Path == parentDoc.Path {
 			logVerbose("skipping [%s], same doc as parent\n", child.Path)
 			continue
 		}
 
-		for sectionKey, sectionObject := range sections {
+		for sectionKey, handlerFn := range sections {
 			childSection := child.Object.Find(sectionKey)
 			if childSection == nil {
 				continue
 			}
 
-			sectionHeaderAlreadyPrinted := false
-			if sectionObject == typeArray {
-				newArr := existingOrNewArray(*parentDoc.Object, sectionKey)
-				childArrValues := childSection.Value.(*jwcc.Array).Values
-
-				for i := range childArrValues {
-					if !sectionHeaderAlreadyPrinted {
-						childArrValues[i].Comments().Before = []string{fmt.Sprintf("from %s", child.Path)}
-						sectionHeaderAlreadyPrinted = true
-					}
-					newArr.Values = append(newArr.Values, childArrValues[i])
-				}
-
-				index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
-				if index != -1 {
-					parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newArr}
-				} else {
-					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newArr})
-				}
-			} else if sectionObject == typeObject {
-				newObj := existingOrNewObject(*parentDoc.Object, sectionKey)
-				for _, m := range childSection.Value.(*jwcc.Object).Members {
-					newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
-					if !sectionHeaderAlreadyPrinted {
-						newMember.Comments().Before = []string{fmt.Sprintf("from %s", child.Path)}
-						sectionHeaderAlreadyPrinted = true
-					}
-					newObj.Members = append(newObj.Members, newMember)
-				}
-
-				index := parentDoc.Object.IndexKey(ast.TextEqual(sectionKey))
-				if index != -1 {
-					parentDoc.Object.Members[index] = &jwcc.Member{Key: childSection.Key, Value: newObj}
-				} else {
-					parentDoc.Object.Members = append(parentDoc.Object.Members, &jwcc.Member{Key: childSection.Key, Value: newObj})
-				}
-			} else {
-				return fmt.Errorf("unexpected type [%v] for [\"%s\"] from file [%s]", sectionObject, sectionKey, parentDoc.Path)
-			}
-
+			handlerFn(sectionKey, parentDoc.Path, parentDoc.Object, child.Path, childSection)
 			child.Object.Members = removeMember(child.Object, sectionKey)
 		}
 
 		for _, remainingSection := range child.Object.Members {
-			// TODO: arg to log and not error on unsupported sections?
 			return fmt.Errorf("unsupported section [\"%s\"] in file [%s]", remainingSection.Key, child.Path)
 		}
 	}
+
+	parentDoc.Object.Sort()
+
 	return nil
 }
 
@@ -270,7 +313,7 @@ func parse(path string) (*ParsedDocument, error) {
 
 	root, ok := doc.Value.(*jwcc.Object)
 	if !ok {
-		return nil, fmt.Errorf("invalid file format: document root is %T, expected object", doc.Value)
+		return nil, fmt.Errorf("invalid file format: document root is [%T], expected [object]", doc.Value)
 	}
 
 	return &ParsedDocument{Path: path, Object: root}, nil
