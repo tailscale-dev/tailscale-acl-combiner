@@ -1,13 +1,36 @@
 package main
 
 import (
-	"fmt"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/creachadair/jtree/ast"
 	"github.com/creachadair/jtree/jwcc"
+)
+
+const (
+	ACL_PARENT = `{
+	"groups": {
+		"group:engineering": [
+			"dave@example.com",
+			"laura@example.com",
+		],
+		"group:sales": [
+			"brad@example.com",
+			"alice@example.com",
+		],
+	},
+	"acls": [
+		{
+			"action": "accept",
+			"src": ["group:security-team@example.com"],
+			"dst": ["tag:logging:*"]
+		}
+	],
+	"tagOwners": {
+		"tag:logging": ["group:security-team@example.com"]
+	}
+}`
 )
 
 func TestMergeDocsEmptyParent(t *testing.T) {
@@ -233,10 +256,8 @@ func TestGetAllowedSections(t *testing.T) {
 	}
 }
 
-func TestArrayHandler(t *testing.T) {
-	parent, err := jwcc.Parse(strings.NewReader(`{
-		// empty parent
-	}`))
+func TestHandleArray(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(ACL_PARENT))
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -261,9 +282,48 @@ func TestArrayHandler(t *testing.T) {
 
 	aclMembers := parentDoc.Object.Find("acls").Value.(*jwcc.Array).Values
 
-	os.Stderr.WriteString(fmt.Sprintf("aclMembers: %v", aclMembers))
-
-	if len(aclMembers) != 1 {
+	if len(aclMembers) != 2 {
 		t.Fatalf("section [%v] should be 1, not [%v]", "acls", len(aclMembers))
 	}
+}
+func TestHandleObject(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(ACL_PARENT))
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
+	}
+
+	child, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {
+			"group:from_child": [
+				"dave@example.com",
+				"laura@example.com",
+			],
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	childSection := child.Value.(*jwcc.Object).Find("groups")
+
+	handlerFn := handleObject()
+	handlerFn("groups", parentDoc.Path, parentDoc.Object, "CHILD", childSection)
+
+	aclMembers := parentDoc.Object.Find("groups").Value.(*jwcc.Object).Members
+
+	if len(aclMembers) != 3 {
+		t.Fatalf("section [%v] should be 1, not [%v]", "groups", len(aclMembers))
+	}
+}
+
+func TestHandleAutoApprovers(t *testing.T) {
+	// todo
+}
+
+func TestSort(t *testing.T) {
+	// todo
 }
