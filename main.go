@@ -35,6 +35,7 @@ var (
 		"ssh":             handleArray(),
 		"tagOwners":       handleObject(),
 		"tests":           handleArray(),
+		"hosts":           handleObject(),
 	}
 )
 
