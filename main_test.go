@@ -237,7 +237,10 @@ func TestGetAllowedSections(t *testing.T) {
 		"3": actualValue,
 	}
 	allowed := []string{"1", "2"}
-	allowedAclSections := getAllowedSections(allowed, defined)
+	allowedAclSections, err := getAllowedSections(allowed, defined)
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
 
 	// should exist
 	section1 := allowedAclSections["1"]
@@ -257,6 +260,20 @@ func TestGetAllowedSections(t *testing.T) {
 	sectionZ := allowedAclSections["Z"]
 	if sectionZ != nil {
 		t.Fatalf("section [%v] SHOULD be [nil]", "Z")
+	}
+}
+
+func TestGetAllowedSectionsInvalidSection(t *testing.T) {
+	actualValue := handleObject()
+	defined := map[string]SectionHandler{
+		"1": actualValue,
+		"2": actualValue,
+		"3": actualValue,
+	}
+	allowed := []string{"1", "2", "invalid"}
+	_, err := getAllowedSections(allowed, defined)
+	if err == nil {
+		t.Fatalf("expected error, got [%v]", err)
 	}
 }
 

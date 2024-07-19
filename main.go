@@ -105,7 +105,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	aclSections := getAllowedSections(allowedAclSections, preDefinedAclSections)
+	aclSections, err := getAllowedSections(allowedAclSections, preDefinedAclSections)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	err = mergeDocs(aclSections, parentDoc, childDocs)
 	if err != nil {
 		log.Fatal(err)
@@ -114,13 +118,16 @@ func main() {
 	outputFile(parentDoc.Object)
 }
 
-func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[string]SectionHandler) map[string]SectionHandler {
+func getAllowedSections(allowedAclSections []string, preDefinedAclSections map[string]SectionHandler) (map[string]SectionHandler, error) {
 	aclSections := map[string]SectionHandler{}
 	for _, v := range allowedAclSections {
+		if preDefinedAclSections[v] == nil {
+			return nil, fmt.Errorf("unsupported section [%s] specified in [-allow] flag", v)
+		}
 		aclSections[v] = preDefinedAclSections[v]
 	}
 	logVerbose("allowing ACL sections [%v]\n", aclSections)
-	return aclSections
+	return aclSections, nil
 }
 
 type SectionHandler func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member)
