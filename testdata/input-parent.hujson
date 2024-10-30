@@ -63,4 +63,8 @@
 		"tag:dave": [],
 		"tag:jane": [],
 	},
+
+	"ipsets": {
+		"ipset:parent": ["192.0.2.0"],
+	},
 }
