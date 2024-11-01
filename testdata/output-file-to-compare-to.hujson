@@ -1,8 +1,9 @@
 {
+  // from `testdata/input-parent.hujson`
   "RandomizeClientPort": true, // inline comment
 
   "acls": [
-    // from testdata/departments/engineering/acls.hujson
+    // from `testdata/input-parent.hujson`
     {
       // engineering1
       "action": "accept",
@@ -27,14 +28,14 @@
       "dst":        ["tag:demo-infra:22"],
       "srcPosture": ["posture:latestMac"],
     },
-    // from testdata/departments/engineering/acls.json
+    // from `testdata/departments/engineering/acls.json`
     {
       "action":     "accept",
       "src":        ["json-rule@tsjustworks.net"],
       "dst":        ["tag:json-rule:22"],
       "srcPosture": ["posture:latestMac"],
     },
-    // from testdata/departments/finance/acls.hujson
+    // from `testdata/departments/finance/acls.hujson`
     {
       // finance1
       "action": "accept",
@@ -51,6 +52,7 @@
     },
   ],
 
+  // from `testdata/input-parent.hujson`
   "extraDNSRecords": [
     {
       "Name":  "exra.dns.records",
@@ -59,7 +61,7 @@
   ],
 
   "grants": [
-    // from testdata/departments/engineering/grants.hujson
+    // from `testdata/departments/engineering/grants.hujson`
     {
       //"src": ["group:prod"],
       "src": ["allen@tsjustworks.net"],
@@ -70,15 +72,25 @@
   ],
 
   "groups": {
+    // from `testdata/input-parent.hujson`
     "group:parent": ["from-parent"],
 
-    // from testdata/departments/engineering/groups.hujson
+    // from `testdata/departments/engineering/groups.hujson`
     "group:group1": ["cameron@tsjustworks.net"],
 
-    // from testdata/departments/finance/acls.hujson
+    // from `testdata/departments/finance/acls.hujson`
     "group:group2": ["allen@tsjustworks.net"],
   },
 
+  "ipsets": {
+    // from `testdata/input-parent.hujson`
+    "ipset:parent": ["192.0.2.0"],
+
+    // from `testdata/departments/finance/ipsets.hujson`
+    "ipset:parent": ["192.0.2.1"],
+  },
+
+  // from `testdata/input-parent.hujson`
   "nodeAttrs": [
     {
       "target": ["*"],
@@ -105,23 +117,25 @@
     },
   ],
 
+  // from `testdata/input-parent.hujson`
   "postures": {"posture:latestMac": ["node:os IN ['macos', 'linux']","node:tsReleaseTrack == 'stable'","node:tsVersion >= '1.40'"]},
 
   "ssh": [
+    // from `testdata/input-parent.hujson`
     {
       "action": "accept",
       "src":    ["autogroup:member"],
       "dst":    ["autogroup:self"],
       "users":  ["root", "autogroup:nonroot"],
     },
-    // from testdata/departments/engineering/acls.hujson
+    // from `testdata/departments/engineering/acls.hujson`
     {
       "action": "accept",
       "src":    ["group:finance"],
       "dst":    ["autogroup:self"],
       "users":  ["root", "autogroup:nonroot"],
     },
-    // from testdata/departments/finance/ssh.hujson
+    // from `testdata/departments/finance/ssh.hujson`
     {
       "action": "accept",
       "src":    ["autogroup:member"],
@@ -136,6 +150,7 @@
     },
   ],
 
+  // from `testdata/input-parent.hujson`
   "tagOwners": {
     "tag:parent":  [],
     "tag:cameron": ["autogroup:member"],
@@ -144,12 +159,12 @@
   },
 
   "tests": [
-    // from testdata/departments/engineering/acls.hujson
+    // from `testdata/input-parent.hujson`
     {
       "src":    "cameron@example.com",
       "accept": ["tag:cameron:22"],
     },
-    // from testdata/departments/finance/acls.hujson
+    // from `testdata/departments/finance/acls.hujson`
     {
       "src":             "dave@example.com",
       "srcPostureAttrs": {"node:os": "windows"},
