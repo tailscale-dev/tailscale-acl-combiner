@@ -30,6 +30,7 @@ var (
 		"extraDNSRecords": handleArray(),
 		"grants":          handleArray(),
 		"groups":          handleObject(),
+		"ipsets":          handleObject(),
 		"nodeAttrs":       handleArray(), // TODO: need to merge anything?
 		"postures":        handleObject(),
 		"ssh":             handleArray(),
