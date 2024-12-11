@@ -52,6 +52,21 @@
     },
   ],
 
+  "autoApprovers": {
+    "exitNode": [
+      // from `testdata/departments/engineering/autoApprovers.hujson`
+      "tag:example",
+    ],
+
+    "routes": {
+      // from `testdata/input-parent.hujson`
+      "10.0.0.0/32": ["tag:example"],
+
+      // from `testdata/departments/finance/autoApprovers.hujson`
+      "10.0.10.0/32": ["tag:example"],
+    },
+  },
+
   // from `testdata/input-parent.hujson`
   "extraDNSRecords": [
     {
@@ -87,7 +102,7 @@
     "ipset:parent": ["192.0.2.0"],
 
     // from `testdata/departments/finance/ipsets.hujson`
-    "ipset:parent": ["192.0.2.1"],
+    "ipset:finance": ["192.0.2.1"],
   },
 
   // from `testdata/input-parent.hujson`
