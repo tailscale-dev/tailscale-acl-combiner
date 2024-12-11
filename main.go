@@ -135,8 +135,11 @@ type SectionHandler func(sectionKey string, parentPath string, parent *jwcc.Obje
 
 func handleArray() SectionHandler {
 	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
+		if childSection == nil {
+			return
+		}
 		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
-		if parentProps != nil {
+		if parentProps != nil && len(parentProps.Value.(*jwcc.Array).Values) > 0 {
 			pathComment(parentProps.Value.(*jwcc.Array).Values[0], parentPath)
 		}
 
@@ -160,6 +163,9 @@ func handleArray() SectionHandler {
 
 func handleObject() SectionHandler {
 	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
+		if childSection == nil {
+			return
+		}
 		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
 		if parentProps != nil {
 			pathComment(parentProps.Value.(*jwcc.Object).Members[0], parentPath)
@@ -185,6 +191,9 @@ func handleObject() SectionHandler {
 func handleAutoApprovers() SectionHandler {
 	// https://tailscale.com/kb/1337/acl-syntax#auto-approvers-autoapprovers
 	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
+		if childSection == nil {
+			return
+		}
 		newObj := existingOrNewObject(*parent, sectionKey)
 
 		childSectionObj := childSection.Value.(*jwcc.Object)
