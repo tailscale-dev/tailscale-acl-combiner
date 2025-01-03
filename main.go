@@ -176,6 +176,9 @@ func handleObject() SectionHandler {
 		pathCommentAlreadyAdded := false
 		for _, m := range childSection.Value.(*jwcc.Object).Members {
 			newMember := &jwcc.Member{Key: m.Key, Value: m.Value}
+			newMember.Comments().Before = m.Comments().Before
+			newMember.Comments().Line = m.Comments().Line
+			newMember.Comments().End = m.Comments().End
 			newObj.Members = append(newObj.Members, newMember)
 
 			if !pathCommentAlreadyAdded {
@@ -214,15 +217,19 @@ func handleAutoApprovers() SectionHandler {
 func upsertMember[V *jwcc.Object | *jwcc.Array](doc *jwcc.Object, key string, val V) {
 	keyAst := ast.String(key)
 	index := doc.IndexKey(ast.TextEqual(key))
+	newMember := &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)}
+	newMember.Comments().Before = jwcc.Value(val).Comments().Before
+	newMember.Comments().Line = jwcc.Value(val).Comments().Line
+	newMember.Comments().End = jwcc.Value(val).Comments().End
 	if index != -1 {
-		doc.Members[index] = &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)}
+		doc.Members[index] = newMember
 	} else {
-		doc.Members = append(doc.Members, &jwcc.Member{Key: keyAst.Quote(), Value: jwcc.Value(val)})
+		doc.Members = append(doc.Members, newMember)
 	}
 }
 
 func pathComment(val jwcc.Value, path string) {
-	val.Comments().Before = []string{fmt.Sprintf("from `%s`", path)}
+	val.Comments().Before = append([]string{fmt.Sprintf("from `%s`", path)}, val.Comments().Before...)
 }
 
 func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
