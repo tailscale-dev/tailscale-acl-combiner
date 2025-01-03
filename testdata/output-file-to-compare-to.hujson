@@ -3,12 +3,12 @@
   "RandomizeClientPort": true, // inline comment
 
   "acls": [
-    // from `testdata/input-parent.hujson`
+    // from `testdata/departments/engineering/acls.hujson`
     {
       // engineering1
       "action": "accept",
 
-      "src":        ["engineering1@tsjustworks.net"],
+      "src":        ["engineering1@example.com"],
       "dst":        ["tag:demo-infra:22"],
       "srcPosture": ["posture:latestMac"],
     },
@@ -16,7 +16,7 @@
       // engineering2
       "action": "accept",
 
-      "src":        ["engineering2@tsjustworks.net"],
+      "src":        ["engineering2@example.com"],
       "dst":        ["tag:demo-infra:22"],
       "srcPosture": ["posture:latestMac"],
     },
@@ -24,14 +24,14 @@
       // engineering3
       "action": "accept",
 
-      "src":        ["engineering3@tsjustworks.net"],
+      "src":        ["engineering3@example.com"],
       "dst":        ["tag:demo-infra:22"],
       "srcPosture": ["posture:latestMac"],
     },
     // from `testdata/departments/engineering/acls.json`
     {
       "action":     "accept",
-      "src":        ["json-rule@tsjustworks.net"],
+      "src":        ["engineering@example.com"],
       "dst":        ["tag:json-rule:22"],
       "srcPosture": ["posture:latestMac"],
     },
@@ -40,14 +40,14 @@
       // finance1
       "action": "accept",
 
-      "src": ["finance1@tsjustworks.net"],
+      "src": ["finance1@example.com"],
       "dst": ["tag:demo-infra:22"],
     },
     {
       // finance2
       "action": "accept",
 
-      "src": ["finance2@tsjustworks.net"],
+      "src": ["finance2@example.com"],
       "dst": ["tag:demo-infra:22"],
     },
   ],
@@ -55,20 +55,20 @@
   "autoApprovers": {
     "exitNode": [
       // from `testdata/departments/engineering/autoApprovers.hujson`
-      "tag:example",
+      "tag:engineering",
     ],
 
     "routes": {
-      // from `testdata/input-parent.hujson`
-      "10.0.0.0/32": ["tag:example"],
+      // from `testdata/departments/engineering/autoApprovers.hujson`
+      "10.0.0.0/32": ["tag:engineering"],
 
       // from `testdata/departments/finance/autoApprovers.hujson`
-      "10.0.10.0/32": ["tag:example"],
+      "10.0.10.0/32": ["tag:finance"],
     },
   },
 
-  // from `testdata/input-parent.hujson`
   "extraDNSRecords": [
+    // from `testdata/input-parent.hujson`
     {
       "Name":  "exra.dns.records",
       "Value": "100.100.100.100",
@@ -79,7 +79,7 @@
     // from `testdata/departments/engineering/grants.hujson`
     {
       //"src": ["group:prod"],
-      "src": ["allen@tsjustworks.net"],
+      "src": ["engineering@example.com"],
 
       "dst": ["tag:k8s-operator"],
       "app": {"tailscale.com/cap/kubernetes": [{"impersonate":{"groups":["system:masters"]}}]},
@@ -91,10 +91,10 @@
     "group:parent": ["from-parent"],
 
     // from `testdata/departments/engineering/groups.hujson`
-    "group:group1": ["cameron@tsjustworks.net"],
+    "group:engineering": ["user1@example.com"],
 
     // from `testdata/departments/finance/acls.hujson`
-    "group:group2": ["allen@tsjustworks.net"],
+    "group:finance": ["finance@example.com"],
   },
 
   "ipsets": {
@@ -105,8 +105,8 @@
     "ipset:finance": ["192.0.2.1"],
   },
 
-  // from `testdata/input-parent.hujson`
   "nodeAttrs": [
+    // from `testdata/input-parent.hujson`
     {
       "target": ["*"],
 
@@ -127,13 +127,15 @@
       "target": ["autogroup:admin"],
     },
     {
-      "target": ["my-kid@my-home.com", "tag:server"],
+      "target": ["user4@example.com", "tag:server"],
       "attr":   ["nextdns:abc123", "nextdns:no-device-info"],
     },
   ],
 
-  // from `testdata/input-parent.hujson`
-  "postures": {"posture:latestMac": ["node:os IN ['macos', 'linux']","node:tsReleaseTrack == 'stable'","node:tsVersion >= '1.40'"]},
+  "postures": {
+    // from `testdata/input-parent.hujson`
+    "posture:latestMac": ["node:os IN ['macos', 'linux']", "node:tsReleaseTrack == 'stable'", "node:tsVersion >= '1.40'"],
+  },
 
   "ssh": [
     // from `testdata/input-parent.hujson`
@@ -146,7 +148,7 @@
     // from `testdata/departments/engineering/acls.hujson`
     {
       "action": "accept",
-      "src":    ["group:finance"],
+      "src":    ["group:engineering"],
       "dst":    ["autogroup:self"],
       "users":  ["root", "autogroup:nonroot"],
     },
@@ -154,34 +156,35 @@
     {
       "action": "accept",
       "src":    ["autogroup:member"],
-      "dst":    ["tag:prod"],
+      "dst":    ["tag:finance"],
       "users":  ["root", "autogroup:nonroot"],
     },
     {
       "action": "accept",
-      "src":    ["tag:logging"],
-      "dst":    ["tag:prod"],
+      "src":    ["tag:finance"],
+      "dst":    ["tag:finance"],
       "users":  ["root", "autogroup:nonroot"],
     },
   ],
 
-  // from `testdata/input-parent.hujson`
   "tagOwners": {
-    "tag:parent":  [],
-    "tag:cameron": ["autogroup:member"],
-    "tag:dave":    [],
-    "tag:jane":    [],
+    // from `testdata/input-parent.hujson`
+    "tag:parent": [],
+
+    "tag:user1": ["autogroup:member"],
+    "tag:dave":  [],
+    "tag:jane":  [],
   },
 
   "tests": [
-    // from `testdata/input-parent.hujson`
+    // from `testdata/departments/engineering/acls.hujson`
     {
-      "src":    "cameron@example.com",
-      "accept": ["tag:cameron:22"],
+      "src":    "engineering@example.com",
+      "accept": ["tag:dev:22"],
     },
     // from `testdata/departments/finance/acls.hujson`
     {
-      "src":             "dave@example.com",
+      "src":             "finance@example.com",
       "srcPostureAttrs": {"node:os": "windows"},
       "proto":           "tcp",
       "accept":          ["example-host-1:22", "vega:80"],

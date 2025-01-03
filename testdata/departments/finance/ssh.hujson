@@ -3,13 +3,13 @@
 		{
 			"action": "accept",
 			"src":    ["autogroup:member"],
-			"dst":    ["tag:prod"],
+			"dst":    ["tag:finance"],
 			"users":  ["root", "autogroup:nonroot"],
 		},
 		{
 			"action": "accept",
-			"src":    ["tag:logging"],
-			"dst":    ["tag:prod"],
+			"src":    ["tag:finance"],
+			"dst":    ["tag:finance"],
 			"users":  ["root", "autogroup:nonroot"],
 		},
 	],

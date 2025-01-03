@@ -1,7 +1,7 @@
 {
 	"groups": {
-		"group:group1": [
-			"cameron@tsjustworks.net",
+		"group:engineering": [
+			"user1@example.com",
 		],
 	},
 }

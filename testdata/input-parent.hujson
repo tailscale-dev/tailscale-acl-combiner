@@ -1,4 +1,5 @@
 {
+	// comment in parent file
 	"RandomizeClientPort": true, // inline comment
 
 	"extraDNSRecords": [
@@ -30,7 +31,7 @@
 			"target": ["autogroup:admin"],
 		},
 		{
-			"target": ["my-kid@my-home.com", "tag:server"],
+			"target": ["user4@example.com", "tag:server"],
 			"attr": [
 				"nextdns:abc123",
 				"nextdns:no-device-info",
@@ -57,7 +58,7 @@
 
 	"tagOwners": {
 		"tag:parent": [],
-		"tag:cameron": [
+		"tag:user1": [
 			"autogroup:member",
 		],
 		"tag:dave": [],

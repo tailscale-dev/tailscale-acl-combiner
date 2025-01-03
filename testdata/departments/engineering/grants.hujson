@@ -2,7 +2,7 @@
 	"grants": [
 		{
 			//"src": ["group:prod"],
-			"src": ["allen@tsjustworks.net"],
+			"src": ["engineering@example.com"],
 			"dst": ["tag:k8s-operator"],
 			"app": {
 				"tailscale.com/cap/kubernetes": [{
