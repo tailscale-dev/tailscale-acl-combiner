@@ -111,11 +111,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = addParentPathComments(parentDoc)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	err = mergeDocs(aclSections, parentDoc, childDocs)
 	if err != nil {
 		log.Fatal(err)
@@ -237,6 +232,11 @@ func addParentPathComments(parentDoc *ParsedDocument) error {
 }
 
 func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
+	err := addParentPathComments(parentDoc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	for _, child := range childDocs {
 		if child.Path == parentDoc.Path {
 			logVerbose("skipping [%s], same doc as parent\n", child.Path)
