@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -160,6 +161,141 @@ func TestMergeDocsParentWithSameMember(t *testing.T) {
 	memberObjectMembers := member.Value.(*jwcc.Object).Members
 	if len(memberObjectMembers) != 2 {
 		t.Fatalf("member object keys length should be [2], got [%v]", len(memberObjectMembers))
+	}
+}
+
+func TestPathCommentsForObject(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		"goodpath": {"bar":"foo"}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
+	}
+
+	child, err := jwcc.Parse(strings.NewReader(`{
+		"goodpath": {"foo":"bar"}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	childDoc := &ParsedDocument{
+		Object: child.Value.(*jwcc.Object),
+		Path:   "child",
+	}
+
+	sections := map[string]SectionHandler{
+		"goodpath": handleObject(),
+	}
+
+	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	if len(parentDoc.Object.Members) != 1 {
+		t.Fatalf("parent members length should be [1], got [%v]", len(parentDoc.Object.Members))
+	}
+
+	memberIndexKey := parentDoc.Object.IndexKey(ast.TextEqual("goodpath"))
+	if memberIndexKey != 0 {
+		t.Fatalf("section index key length should be [0], got [%v]", memberIndexKey)
+	}
+
+	member := parentDoc.Object.Members[memberIndexKey]
+	memberObjectMembers := member.Value.(*jwcc.Object).Members
+	if len(memberObjectMembers) != 2 {
+		t.Fatalf("member object keys length should be [2], got [%v]", len(memberObjectMembers))
+	}
+
+	barMember := member.Value.(*jwcc.Object).Find("bar")
+	if barMember.Value.String() != "foo" {
+		t.Fatalf("member value should be [foo], got [%v]", barMember.Value.String())
+	}
+	barMemberComments := barMember.Comments().Before
+	if barMemberComments[0] != "from `parent`" {
+		t.Fatalf("member comment should be [from `parent`], got [%v]", barMemberComments[0])
+	}
+
+	fooMember := member.Value.(*jwcc.Object).Find("foo")
+	if fooMember.Value.String() != "bar" {
+		t.Fatalf("member value should be [bar], got [%v]", fooMember.Value.String())
+	}
+	fooMemberComments := fooMember.Comments().Before
+	if fooMemberComments[0] != "from `child`" {
+		t.Fatalf("member comment should be [from `child`], got [%v]", fooMemberComments[0])
+	}
+}
+
+func TestPathCommentsForArray(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		"things": [{"thing1":"foo"}],
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
+	}
+
+	child, err := jwcc.Parse(strings.NewReader(`{
+		"things": [{"thing2":"bar"}],
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	childDoc := &ParsedDocument{
+		Object: child.Value.(*jwcc.Object),
+		Path:   "child",
+	}
+
+	sections := map[string]SectionHandler{
+		"things": handleArray(),
+	}
+
+	err = mergeDocs(sections, parentDoc, []*ParsedDocument{childDoc})
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	if len(parentDoc.Object.Members) != 1 {
+		t.Fatalf("parent members length should be [1], got [%v]", len(parentDoc.Object.Members))
+	}
+
+	thingsMember := parentDoc.Object.Find("things")
+	if thingsMember == nil {
+		t.Fatalf("section index key length should be not nil, got [%v]", thingsMember)
+	}
+
+	thingsMemberValues := thingsMember.Value.(*jwcc.Array).Values
+	if len(thingsMemberValues) != 2 {
+		t.Fatalf("members length should be [2], got [%v]", len(thingsMemberValues))
+	}
+
+	barMember := thingsMemberValues[0].(*jwcc.Object)
+	if barMember.Members[0].Key.String() != "thing1" {
+		t.Fatalf("member key should be [thing1], got [%v]", barMember.Members[0].Key.String())
+	}
+	if barMember.Members[0].Value.String() != "foo" {
+		t.Fatalf("member value should be [foo], got [%v]", barMember.Members[0].Value.String())
+	}
+	if barMember.Comments().Before[0] != "from `parent`" {
+		t.Fatalf("member comment should be [from `parent`], got [%v]", barMember.Comments().Before[0])
+	}
+
+	fooMember := thingsMemberValues[1].(*jwcc.Object)
+	if fooMember.Members[0].Key.String() != "thing2" {
+		t.Fatalf("member key should be [thing2], got [%v]", fooMember.Members[0].Key.String())
+	}
+	if fooMember.Members[0].Value.String() != "bar" {
+		t.Fatalf("member value should be [bar], got [%v]", fooMember.Members[0].Value.String())
+	}
+	if fooMember.Comments().Before[0] != "from `child`" {
+		t.Fatalf("member comment should be [from `parent`], got [%v]", fooMember.Comments().Before[0])
 	}
 }
 
@@ -421,5 +557,12 @@ func TestSort(t *testing.T) {
 		if parentDoc.Object.Members[i].Key.String() != v {
 			t.Fatalf("section [%v] should be position [%v]", v, i)
 		}
+	}
+}
+
+func printDocument(doc *ParsedDocument) {
+	err := jwcc.Format(os.Stdout, doc.Object)
+	if err != nil {
+		panic(err)
 	}
 }

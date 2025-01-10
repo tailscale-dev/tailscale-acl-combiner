@@ -3,7 +3,7 @@
 		{
 			"action": "accept",
 			"src": [
-				"json-rule@tsjustworks.net"
+				"engineering@example.com"
 			],
 			"dst": [
 				"tag:json-rule:22"

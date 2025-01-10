@@ -138,23 +138,17 @@ func handleArray() SectionHandler {
 		if childSection == nil {
 			return
 		}
-		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
-		if parentProps != nil && len(parentProps.Value.(*jwcc.Array).Values) > 0 {
-			pathComment(parentProps.Value.(*jwcc.Array).Values[0], parentPath)
-		}
 
 		newArr := existingOrNewArray(*parent, sectionKey)
-		childArrValues := childSection.Value.(*jwcc.Array).Values
 
 		pathCommentAlreadyAdded := false
-		for i := range childArrValues {
-			newArr.Values = append(newArr.Values, childArrValues[i])
+		for _, v := range childSection.Value.(*jwcc.Array).Values {
+			newArr.Values = append(newArr.Values, v)
 
 			if !pathCommentAlreadyAdded {
-				pathComment(childArrValues[i], childPath)
+				pathComment(v, childPath)
 				pathCommentAlreadyAdded = true
 			}
-
 		}
 
 		upsertMember(parent, sectionKey, newArr)
@@ -165,10 +159,6 @@ func handleObject() SectionHandler {
 	return func(sectionKey string, parentPath string, parent *jwcc.Object, childPath string, childSection *jwcc.Member) {
 		if childSection == nil {
 			return
-		}
-		parentProps := parent.FindKey(ast.TextEqual(sectionKey))
-		if parentProps != nil {
-			pathComment(parentProps.Value.(*jwcc.Object).Members[0], parentPath)
 		}
 
 		newObj := existingOrNewObject(*parent, sectionKey)
@@ -222,13 +212,31 @@ func upsertMember[V *jwcc.Object | *jwcc.Array](doc *jwcc.Object, key string, va
 }
 
 func pathComment(val jwcc.Value, path string) {
+	// TODO: preserve existing comments
 	val.Comments().Before = []string{fmt.Sprintf("from `%s`", path)}
 }
 
-func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
+func addParentPathComments(parentDoc *ParsedDocument) error {
 	for _, parentSection := range parentDoc.Object.Members {
-		pathComment(parentSection, parentDoc.Path)
+		logVerbose("adding parent path comment to [%s]\n", parentSection.Key)
+		switch parentSection.Value.(type) {
+		default:
+			pathComment(parentSection, parentDoc.Path)
+		case *jwcc.Array:
+			pathComment(parentSection.Value.(*jwcc.Array).Values[0], parentDoc.Path)
+		case *jwcc.Object:
+			pathComment(parentSection.Value.(*jwcc.Object).Members[0], parentDoc.Path)
+		}
 	}
+	return nil
+}
+
+func mergeDocs(sections map[string]SectionHandler, parentDoc *ParsedDocument, childDocs []*ParsedDocument) error {
+	err := addParentPathComments(parentDoc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	for _, child := range childDocs {
 		if child.Path == parentDoc.Path {
 			logVerbose("skipping [%s], same doc as parent\n", child.Path)

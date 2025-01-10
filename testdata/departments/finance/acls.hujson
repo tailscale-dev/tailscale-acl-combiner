@@ -3,7 +3,7 @@
 		{ // finance1
 			"action": "accept",
 			"src": [
-				"finance1@tsjustworks.net",
+				"finance1@example.com",
 			],
 			"dst": [
 				"tag:demo-infra:22",
@@ -12,7 +12,7 @@
 		{ // finance2
 			"action": "accept",
 			"src": [
-				"finance2@tsjustworks.net",
+				"finance2@example.com",
 			],
 			"dst": [
 				"tag:demo-infra:22",
@@ -20,13 +20,13 @@
 		},
 	],
 	"groups": {
-		"group:group2": [
-			"allen@tsjustworks.net",
+		"group:finance": [
+			"finance@example.com",
 		],
 	},
 	"tests": [
 		{
-			"src": "dave@example.com",
+			"src": "finance@example.com",
 			"srcPostureAttrs": {
 				"node:os": "windows",
 			},

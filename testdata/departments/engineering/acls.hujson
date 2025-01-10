@@ -10,7 +10,7 @@
 		{ // engineering1
 			"action": "accept",
 			"src": [
-				"engineering1@tsjustworks.net",
+				"engineering1@example.com",
 			],
 			"dst": [
 				"tag:demo-infra:22",
@@ -22,7 +22,7 @@
 		{ // engineering2
 			"action": "accept",
 			"src": [
-				"engineering2@tsjustworks.net",
+				"engineering2@example.com",
 			],
 			"dst": [
 				"tag:demo-infra:22",
@@ -34,7 +34,7 @@
 		{ // engineering3
 			"action": "accept",
 			"src": [
-				"engineering3@tsjustworks.net",
+				"engineering3@example.com",
 			],
 			"dst": [
 				"tag:demo-infra:22",
@@ -46,14 +46,14 @@
 	],
 	"tests": [
 		{
-			"src":    "cameron@example.com",
-			"accept": ["tag:cameron:22"],
+			"src":    "engineering@example.com",
+			"accept": ["tag:dev:22"],
 		},
 	],
 	"ssh": [
 		{
 			"action": "accept",
-			"src":    ["group:finance"],
+			"src":    ["group:engineering"],
 			"dst":    ["autogroup:self"],
 			"users":  ["root", "autogroup:nonroot"],
 		},
