@@ -152,6 +152,13 @@
       "dst":    ["autogroup:self"],
       "users":  ["root", "autogroup:nonroot"],
     },
+    // from `testdata/departments/engineering/acls.json`
+    {
+      "action": "accept",
+      "src":    ["engineering@example.com"],
+      "dst":    ["autogroup:self"],
+      "users":  ["root", "autogroup:nonroot"],
+    },
     // from `testdata/departments/finance/ssh.hujson`
     {
       "action": "accept",
@@ -164,6 +171,21 @@
       "src":    ["tag:finance"],
       "dst":    ["tag:finance"],
       "users":  ["root", "autogroup:nonroot"],
+    },
+  ],
+
+  "sshTests": [
+    // from `testdata/input-parent.hujson`
+    {
+      "src":    ["autogroup:member"],
+      "dst":    ["autogroup:self"],
+      "accept": ["root", "autogroup:nonroot"],
+    },
+    // from `testdata/departments/engineering/acls.json`
+    {
+      "src":    ["engineering@example.com"],
+      "dst":    ["autogroup:self"],
+      "accept": ["root", "autogroup:nonroot"],
     },
   ],
 
