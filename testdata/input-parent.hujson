@@ -56,6 +56,14 @@
 		},
 	],
 
+	"sshTests": [
+		{
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"accept":  ["root", "autogroup:nonroot"],
+		},
+	],
+
 	"tagOwners": {
 		"tag:parent": [],
 		"tag:user1": [

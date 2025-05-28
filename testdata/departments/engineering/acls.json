@@ -2,15 +2,24 @@
 	"acls": [
 		{
 			"action": "accept",
-			"src": [
-				"engineering@example.com"
-			],
-			"dst": [
-				"tag:json-rule:22"
-			],
-			"srcPosture": [
-				"posture:latestMac"
-			]
+			"src": ["engineering@example.com"],
+			"dst": ["tag:json-rule:22"],
+			"srcPosture": ["posture:latestMac"]
+		}
+	],
+	"ssh": [
+		{
+			"action": "accept",
+			"src": ["engineering@example.com"],
+			"dst": ["autogroup:self"],
+			"users": ["root", "autogroup:nonroot"]
+		}
+	],
+	"sshTests": [
+		{
+			"src": ["engineering@example.com"],
+			"dst": ["autogroup:self"],
+			"accept": ["root", "autogroup:nonroot"]
 		}
 	]
 }
