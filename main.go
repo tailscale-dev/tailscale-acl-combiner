@@ -13,6 +13,7 @@ import (
 
 	"github.com/creachadair/jtree/ast"
 	"github.com/creachadair/jtree/jwcc"
+	"github.com/tailscale/hujson"
 )
 
 var (
@@ -304,6 +305,17 @@ func gatherChildren(path string) ([]*ParsedDocument, error) {
 }
 
 func outputFile(doc *jwcc.Object) error {
+	var sb strings.Builder
+	err := jwcc.Format(&sb, doc)
+	if err != nil {
+		return err
+	}
+
+	formatted, err := hujson.Format([]byte(sb.String()))
+	if err != nil {
+		return err
+	}
+
 	if *outFile != "" {
 		f, err := os.Create(*outFile)
 		if err != nil {
@@ -312,18 +324,10 @@ func outputFile(doc *jwcc.Object) error {
 		defer f.Close()
 
 		w := bufio.NewWriter(f)
-		err = jwcc.Format(w, doc)
-		if err != nil {
-			return err
-		}
-		w.WriteString("\n")
+		w.Write(formatted)
 		w.Flush()
 	} else {
-		err := jwcc.Format(os.Stdout, doc)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("\n")
+		fmt.Print(string(formatted))
 	}
 	return nil
 }
