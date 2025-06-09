@@ -588,6 +588,76 @@ func TestEmptyParentArray(t *testing.T) {
 	}
 }
 
+func TestEmptyChildObject(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		"hosts": {
+			"host1": "100.99.98.97",
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
+	}
+
+	child, err := jwcc.Parse(strings.NewReader(`{"hosts":{}}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	childDoc := &ParsedDocument{
+		Object: child.Value.(*jwcc.Object),
+		Path:   "child",
+	}
+
+	err = mergeDocs(preDefinedAclSections, parentDoc, []*ParsedDocument{childDoc})
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	mergedValues := parentDoc.Object.Find("hosts").Value.(*jwcc.Object).Members
+	if len(mergedValues) != 1 {
+		t.Fatalf("section [%v] should be [1], not [%v]", "hosts", len(mergedValues))
+	}
+}
+
+func TestEmptyChildArray(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		"acls": [
+			{"action": "accept", "src": ["finance1"], "dst": ["tag:demo-infra:22"]},
+		]
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
+	}
+
+	child, err := jwcc.Parse(strings.NewReader(`{"acls":[]}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	childDoc := &ParsedDocument{
+		Object: child.Value.(*jwcc.Object),
+		Path:   "child",
+	}
+
+	err = mergeDocs(preDefinedAclSections, parentDoc, []*ParsedDocument{childDoc})
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	mergedValues := parentDoc.Object.Find("acls").Value.(*jwcc.Array).Values
+	if len(mergedValues) != 1 {
+		t.Fatalf("section [%v] should be [1], not [%v]", "acls", len(mergedValues))
+	}
+}
+
 func TestSort(t *testing.T) {
 	parent, err := jwcc.Parse(strings.NewReader(ACL_PARENT))
 	if err != nil {
