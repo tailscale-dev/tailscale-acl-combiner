@@ -518,7 +518,7 @@ func TestHandleAutoApprovers(t *testing.T) {
 	}
 }
 
-func TestEmptyHosts(t *testing.T) {
+func TestEmptyParentObject(t *testing.T) {
 	parent, err := jwcc.Parse(strings.NewReader(`{"hosts":{}}`))
 	if err != nil {
 		t.Fatalf("expected no error, got [%v]", err)
@@ -553,7 +553,7 @@ func TestEmptyHosts(t *testing.T) {
 	}
 }
 
-func TestEmptyAcls(t *testing.T) {
+func TestEmptyParentArray(t *testing.T) {
 	parent, err := jwcc.Parse(strings.NewReader(`{"acls":[]}`))
 	if err != nil {
 		t.Fatalf("expected no error, got [%v]", err)
