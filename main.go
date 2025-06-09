@@ -224,9 +224,13 @@ func addParentPathComments(parentDoc *ParsedDocument) error {
 		default:
 			pathComment(parentSection, parentDoc.Path)
 		case *jwcc.Array:
-			pathComment(parentSection.Value.(*jwcc.Array).Values[0], parentDoc.Path)
+			if len(parentSection.Value.(*jwcc.Array).Values) != 0 {
+				pathComment(parentSection.Value.(*jwcc.Array).Values[0], parentDoc.Path)
+			}
 		case *jwcc.Object:
-			pathComment(parentSection.Value.(*jwcc.Object).Members[0], parentDoc.Path)
+			if len(parentSection.Value.(*jwcc.Object).Members) != 0 {
+				pathComment(parentSection.Value.(*jwcc.Object).Members[0], parentDoc.Path)
+			}
 		}
 	}
 	return nil
