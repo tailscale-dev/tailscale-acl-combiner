@@ -198,6 +198,9 @@ func handleAutoApprovers() SectionHandler {
 		objectFn := handleObject()
 		objectFn("routes", parentPath, newObj, childPath, childRoutesProps)
 
+		childServicesProps := childSectionObj.FindKey(ast.TextEqual("services"))
+		objectFn("services", parentPath, newObj, childPath, childServicesProps)
+
 		newObj.Sort()
 		upsertMember(parent, sectionKey, newObj)
 	}

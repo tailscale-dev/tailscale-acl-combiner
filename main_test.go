@@ -491,6 +491,10 @@ func TestHandleAutoApprovers(t *testing.T) {
 				"10.0.1.0/24": ["group:engineering", "alice@example.com", "tag:foo"],
 			},
 			"exitNode": ["tag:foo"],
+			"services": {
+				"svc:web-server": ["tag:server"],
+				"tag:prod-service": ["tag:prod-infra"],
+			}
 		},
 	}`))
 	if err != nil {
@@ -503,8 +507,8 @@ func TestHandleAutoApprovers(t *testing.T) {
 	handlerFn("autoApprovers", parentDoc.Path, parentDoc.Object, "CHILD", childSection)
 
 	mergedValues := parentDoc.Object.Find("autoApprovers").Value
-	if len(mergedValues.(*jwcc.Object).Members) != 2 {
-		t.Fatalf("section [%v] should be [2], not [%v]", "autoApprovers", len(mergedValues.(*jwcc.Object).Members))
+	if len(mergedValues.(*jwcc.Object).Members) != 3 {
+		t.Fatalf("section [%v] should be [3], not [%v]", "autoApprovers", len(mergedValues.(*jwcc.Object).Members))
 	}
 
 	routesValues := mergedValues.(*jwcc.Object).Find("routes").Value.(*jwcc.Object).Members
@@ -515,6 +519,11 @@ func TestHandleAutoApprovers(t *testing.T) {
 	exitNodeValues := mergedValues.(*jwcc.Object).Find("exitNode").Value.(*jwcc.Array).Values
 	if len(exitNodeValues) != 2 {
 		t.Fatalf("section [%v] should be [2], not [%v]", "exitNode", len(exitNodeValues))
+	}
+
+	servicesValues := mergedValues.(*jwcc.Object).Find("services").Value.(*jwcc.Object).Members
+	if len(servicesValues) != 2 {
+		t.Fatalf("section [%v] should be [2], not [%v]", "services", len(servicesValues))
 	}
 }
 
