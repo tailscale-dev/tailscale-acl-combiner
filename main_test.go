@@ -713,3 +713,289 @@ func printDocument(doc *ParsedDocument) {
 		panic(err)
 	}
 }
+
+func TestHandleObjectMergesGroupsWithSameName(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {
+			"group:group-name": [
+				"member-1@company.com",
+				"member-2@company.com",
+			]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+		Path:   "companies/company-1/groups.hujson",
+	}
+
+	child, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {
+			"group:group-name": [
+				"member-3@company.com",
+				"member-4@company.com",
+			]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	childSection := child.Value.(*jwcc.Object).Find("groups")
+
+	handlerFn := handleObject()
+	handlerFn("groups", parentDoc.Path, parentDoc.Object, "companies/company-2/groups.hujson", childSection)
+
+	groupsSection := parentDoc.Object.Find("groups").Value.(*jwcc.Object)
+	if len(groupsSection.Members) != 1 {
+		t.Fatalf("expected 1 group, got [%v]", len(groupsSection.Members))
+	}
+
+	groupMembers := groupsSection.Members[0].Value.(*jwcc.Array).Values
+	if len(groupMembers) != 4 {
+		t.Fatalf("expected 4 members in merged group, got [%v]", len(groupMembers))
+	}
+
+	expectedMembers := map[string]bool{
+		"member-1@company.com": false,
+		"member-2@company.com": false,
+		"member-3@company.com": false,
+		"member-4@company.com": false,
+	}
+	for _, m := range groupMembers {
+		memberStr := m.String()
+		if _, exists := expectedMembers[memberStr]; exists {
+			expectedMembers[memberStr] = true
+		}
+	}
+	for member, found := range expectedMembers {
+		if !found {
+			t.Fatalf("expected member [%v] not found in merged group", member)
+		}
+	}
+}
+
+func TestHandleObjectMergesGroupsWithDeduplication(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {
+			"group:shared": [
+				"user-a@example.com",
+				"user-b@example.com",
+			]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
+	}
+
+	child, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {
+			"group:shared": [
+				"user-b@example.com",
+				"user-c@example.com",
+			]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	childSection := child.Value.(*jwcc.Object).Find("groups")
+
+	handlerFn := handleObject()
+	handlerFn("groups", parentDoc.Path, parentDoc.Object, "child", childSection)
+
+	groupsSection := parentDoc.Object.Find("groups").Value.(*jwcc.Object)
+
+	if len(groupsSection.Members) != 1 {
+		t.Fatalf("expected 1 group, got [%v]", len(groupsSection.Members))
+	}
+
+	groupMembers := groupsSection.Members[0].Value.(*jwcc.Array).Values
+	if len(groupMembers) != 3 {
+		t.Fatalf("expected 3 members (deduplicated), got [%v]", len(groupMembers))
+	}
+}
+
+func TestHandleObjectMergesMultipleGroupsFromMultipleChildren(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
+	}
+
+	child1, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {
+			"group:shared": ["user-a@example.com"]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	child2, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {
+			"group:shared": ["user-b@example.com"]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	child3, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {
+			"group:shared": ["user-c@example.com"]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	handlerFn := handleObject()
+
+	childSection1 := child1.Value.(*jwcc.Object).Find("groups")
+	handlerFn("groups", parentDoc.Path, parentDoc.Object, "child1", childSection1)
+
+	childSection2 := child2.Value.(*jwcc.Object).Find("groups")
+	handlerFn("groups", parentDoc.Path, parentDoc.Object, "child2", childSection2)
+
+	childSection3 := child3.Value.(*jwcc.Object).Find("groups")
+	handlerFn("groups", parentDoc.Path, parentDoc.Object, "child3", childSection3)
+
+	groupsSection := parentDoc.Object.Find("groups").Value.(*jwcc.Object)
+
+	if len(groupsSection.Members) != 1 {
+		t.Fatalf("expected 1 group, got [%v]", len(groupsSection.Members))
+	}
+
+	groupMembers := groupsSection.Members[0].Value.(*jwcc.Array).Values
+	if len(groupMembers) != 3 {
+		t.Fatalf("expected 3 members from 3 children, got [%v]", len(groupMembers))
+	}
+}
+
+func TestHandleObjectPreservesDistinctGroups(t *testing.T) {
+	parent, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {
+			"group:engineering": ["eng-1@example.com"],
+			"group:sales": ["sales-1@example.com"]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	parentDoc := &ParsedDocument{
+		Object: parent.Value.(*jwcc.Object),
+		Path:   "parent",
+	}
+
+	child, err := jwcc.Parse(strings.NewReader(`{
+		"groups": {
+			"group:engineering": ["eng-2@example.com"],
+			"group:finance": ["finance-1@example.com"]
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	childSection := child.Value.(*jwcc.Object).Find("groups")
+
+	handlerFn := handleObject()
+	handlerFn("groups", parentDoc.Path, parentDoc.Object, "child", childSection)
+
+	groupsSection := parentDoc.Object.Find("groups").Value.(*jwcc.Object)
+
+	if len(groupsSection.Members) != 3 {
+		t.Fatalf("expected 3 groups, got [%v]", len(groupsSection.Members))
+	}
+
+	engGroup := groupsSection.FindKey(ast.TextEqual("group:engineering"))
+	if engGroup == nil {
+		t.Fatalf("expected engineering group to exist")
+	}
+	engMembers := engGroup.Value.(*jwcc.Array).Values
+	if len(engMembers) != 2 {
+		t.Fatalf("expected 2 members in engineering group, got [%v]", len(engMembers))
+	}
+
+	salesGroup := groupsSection.FindKey(ast.TextEqual("group:sales"))
+	if salesGroup == nil {
+		t.Fatalf("expected sales group to exist")
+	}
+	salesMembers := salesGroup.Value.(*jwcc.Array).Values
+	if len(salesMembers) != 1 {
+		t.Fatalf("expected 1 member in sales group, got [%v]", len(salesMembers))
+	}
+
+	// Finance should have 1 member (new)
+	financeGroup := groupsSection.FindKey(ast.TextEqual("group:finance"))
+	if financeGroup == nil {
+		t.Fatalf("expected finance group to exist")
+	}
+	financeMembers := financeGroup.Value.(*jwcc.Array).Values
+	if len(financeMembers) != 1 {
+		t.Fatalf("expected 1 member in finance group, got [%v]", len(financeMembers))
+	}
+}
+
+func TestMergeArraysWithDedup(t *testing.T) {
+	arr1, err := jwcc.Parse(strings.NewReader(`["a", "b", "c"]`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	arr2, err := jwcc.Parse(strings.NewReader(`["b", "c", "d"]`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	result := mergeArraysWithDedup(arr1.Value.(*jwcc.Array), arr2.Value.(*jwcc.Array))
+
+	if len(result.Values) != 4 {
+		t.Fatalf("expected 4 values, got [%v]", len(result.Values))
+	}
+
+	expected := map[string]bool{"a": false, "b": false, "c": false, "d": false}
+	for _, v := range result.Values {
+		if _, exists := expected[v.String()]; exists {
+			expected[v.String()] = true
+		}
+	}
+	for val, found := range expected {
+		if !found {
+			t.Fatalf("expected value [%v] not found", val)
+		}
+	}
+}
+
+func TestMergeArraysWithDedupEmptyArrays(t *testing.T) {
+	arr1, err := jwcc.Parse(strings.NewReader(`[]`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+	arr2, err := jwcc.Parse(strings.NewReader(`["a"]`))
+	if err != nil {
+		t.Fatalf("expected no error, got [%v]", err)
+	}
+
+	result := mergeArraysWithDedup(arr1.Value.(*jwcc.Array), arr2.Value.(*jwcc.Array))
+	if len(result.Values) != 1 {
+		t.Fatalf("expected 1 value, got [%v]", len(result.Values))
+	}
+
+	result2 := mergeArraysWithDedup(arr2.Value.(*jwcc.Array), arr1.Value.(*jwcc.Array))
+	if len(result2.Values) != 1 {
+		t.Fatalf("expected 1 value, got [%v]", len(result2.Values))
+	}
+}
